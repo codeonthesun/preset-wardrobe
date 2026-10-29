@@ -12,9 +12,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -33,7 +33,7 @@ jobs:
           echo "/tmp/luau" >> "$GITHUB_PATH"
 
       - name: Plugin tests
-        run: tests/plugin/run.sh
+        run: bash tests/plugin/run.sh
 
       - name: Build the Windows exe
         run: GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-H windowsgui -s -w" -o PresetWardrobe.exe .
