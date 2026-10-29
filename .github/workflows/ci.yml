@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Vet (Linux and Windows)
+        run: |
+          go vet ./...
+          GOOS=windows go vet ./...
+
+      - name: Go tests
+        run: go test ./...
+
+      - name: Install Luau
+        run: |
+          curl -fsSL -o /tmp/luau.zip https://github.com/luau-lang/luau/releases/latest/download/luau-ubuntu.zip
+          unzip -q /tmp/luau.zip -d /tmp/luau
+          echo "/tmp/luau" >> "$GITHUB_PATH"
+
+      - name: Plugin tests
+        run: tests/plugin/run.sh
+
+      - name: Build the Windows exe
+        run: GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-H windowsgui -s -w" -o PresetWardrobe.exe .
