@@ -31,9 +31,9 @@ jobs:
             echo "::error::The version must look like 0.2.0 (got ${TAG})"; exit 1
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -41,7 +41,7 @@ jobs:
         run: go test ./...
 
       - name: Build
-        run: scripts/build-release.sh "${TAG}"
+        run: bash scripts/build-release.sh "${TAG}"
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v2
