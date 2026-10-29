@@ -10,9 +10,7 @@ with a screenshot feature that provides a preview image of each fit in the compa
 
 ## See it in action
 
-[![Watch the demo: picking fits and loading a rotation](docs/media/demo-poster.png)](docs/media/demo.mp4)
-
-![The Fit Catalogue](docs/media/fit-catalogue.png)
+![Watch the demo](PresetWardrobe_WDRN3ZyCLn.gif)
 
 ## Requirements
 
