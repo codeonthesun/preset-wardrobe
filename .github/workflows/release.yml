@@ -27,6 +27,7 @@ jobs:
         run: |
           TAG="${RAW_TAG#vv}"; TAG="v${TAG#v}"
           echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
           if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::The version must look like 0.2.0 (got ${TAG})"; exit 1
           fi
@@ -49,7 +50,7 @@ jobs:
           subject-path: |
             dist/PresetWardrobe.exe
             dist/PresetWardrobe-plugin.zip
-            dist/PresetWardrobe-*.zip
+            dist/PresetWardrobe-${{ env.VERSION }}.zip
 
       - name: Release notes from CHANGELOG.md
         run: |
@@ -72,6 +73,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Drafts left by an earlier failed run are replaced; a published release is never touched.
+          # (Looked up in the full list: drafts can't be found by their tag.)
+          gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq ".[] | select(.tag_name == \"${TAG}\") | \"\(.id) \(.draft)\"" > existing.txt
+          while read -r id draft; do
+            [ -n "$id" ] || continue
+            if [ "$draft" = "true" ]; then
+              echo "Replacing an unfinished draft of ${TAG}"
+              gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/${id}"
+            else
+              echo "::error::${TAG} is already published. Release a new version number instead."; exit 1
+            fi
+          done < existing.txt
           gh release create "${TAG}" --draft --target "${GITHUB_SHA}" \
             --title "Preset Wardrobe ${TAG}" --notes-file dist/NOTES.md \
-            dist/PresetWardrobe-*.zip dist/PresetWardrobe.exe dist/PresetWardrobe-plugin.zip dist/SHA256SUMS.txt
+            "dist/PresetWardrobe-${VERSION}.zip" dist/PresetWardrobe.exe dist/PresetWardrobe-plugin.zip dist/SHA256SUMS.txt
