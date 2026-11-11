@@ -1,12 +1,12 @@
 module presetwardrobe
 
-go 1.24.7
+go 1.26.0
 
 require (
 	github.com/gen2brain/webp v0.6.4
 	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
 	github.com/ncruces/go-sqlite3 v0.31.0
-	golang.org/x/sys v0.41.0
+	golang.org/x/sys v0.50.0
 )
 
 require (
