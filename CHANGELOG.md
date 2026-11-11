@@ -3,7 +3,7 @@
 Versions follow [semantic versioning](https://semver.org). The release workflow copies the
 section for a version into its GitHub release notes, so write each one for players.
 
-## [Unreleased]
+## [0.3.0] - 2026-11-11
 
 ### Added
 - **Load while skate. is running.** Load a rotation or a single fit with the game open: the slots change right
