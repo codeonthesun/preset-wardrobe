@@ -2,5 +2,15 @@
     "api": 1,
     "entry": "plugin/main.lua",
     "side": "client",
-    "permissions": ["menu", "storage", "outfit", "overlay", "capture", "files", "input"]
+    "permissions": [
+        "menu",
+        "storage",
+        "outfit",
+        "overlay",
+        "capture",
+        "files",
+        "input",
+        "room",
+        "skater.animation"
+    ]
 }

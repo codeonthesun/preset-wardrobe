@@ -1,7 +1,8 @@
 {
-    "name": "PresetWardrobe",
-    "version_number": "0.2.0",
-    "website_url": "https://github.com/codeonthesun/preset-wardrobe",
-    "description": "Catalogue your skater presets with preview pictures (F8 on the Skaters page) and load any 10 back in with the Preset Wardrobe app.",
-    "dependencies": []
+  "name": "PresetWardrobe",
+  "version_number": "0.2.10",
+  "website_url": "https://github.com/codeonthesun/preset-wardrobe",
+  "description": "Catalogue your skater presets with preview pictures (your snap key, or hold Y, on the Skaters page) and load any 10 back in with the Preset Wardrobe app.",
+  "dependencies": [],
+  "version": "0.2.10"
 }

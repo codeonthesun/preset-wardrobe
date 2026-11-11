@@ -1,6 +1,10 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script>
+// The saved picture size is applied before anything is drawn, so the page opens at that size instead of changing after it loads.
+try { const f = Number(localStorage.getItem("pw-card-f")); if (f >= 50 && f <= 200) { document.documentElement.style.setProperty("--f", f / 100); document.documentElement.classList.add("sized"); } } catch (e) {}
+</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Preset Wardrobe</title>
@@ -36,6 +40,11 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
 button.primary:hover:not(:disabled) { background: #7dd8fb; border-color: #7dd8fb; }
 button.danger:hover:not(:disabled) { border-color: var(--bad); color: var(--bad); }
+#updBtn { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+#updBtn:disabled { opacity: .8; }
+#updBtn.failed { border-color: var(--warn); color: var(--warn); }
+.dialog p a { color: var(--accent); }
+.dialog .notes { max-height: 220px; overflow: auto; white-space: pre-wrap; font-size: 12px; color: var(--muted); background: rgba(255,255,255,.03); border-radius: 8px; padding: 8px 10px; margin: 8px 0 0; }
 button.ghost { background: transparent; border-color: transparent; color: var(--muted); }
 button.ghost:hover:not(:disabled) { color: var(--text); background: var(--panel-2); }
 button.small { padding: 4px 9px; font-size: 12.5px; border-radius: 6px; }
@@ -57,13 +66,48 @@ header {
   padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line);
 }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
-.status.closed .dot { background: var(--ok); }
-.status.running .dot { background: var(--warn); }
+.status + .status { margin-left: 8px; }
+.status.closed .dot { background: var(--warn); }
+.dialog.settings .hint.warnline { color: var(--warn); }
+.status.running .dot { background: var(--ok); }
 
-.layout { display: grid; grid-template-columns: 270px 1fr; min-height: 0; }
-aside { border-right: 1px solid var(--line); padding: 16px 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.layout { --side-max: 270px; --side: var(--side-max); position: relative; display: grid; grid-template-columns: min(var(--side), var(--side-max)) 1fr; min-height: 0; }
+.layout.collapsed { --side: 0px; }
+.layout.collapsed aside { visibility: hidden; padding: 0; border-right: 0; }
+aside { min-width: 0; overflow-x: hidden; }
+aside > * { min-width: 170px; }
+/* drag the edge of the sidebar to resize it; all the way left hides it */
+#sideGrip { position: absolute; top: 0; bottom: 0; left: calc(min(var(--side), var(--side-max)) - 4px); width: 9px; cursor: col-resize; z-index: 5; touch-action: none; }
+#sideGrip::after { content: ""; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; background: var(--accent); opacity: 0; transition: opacity .15s; }
+#sideGrip:hover::after, #sideGrip.drag::after { opacity: .6; }
+.layout.collapsed #sideGrip { left: 0; width: 6px; }
+#sideOpen { display: none; position: absolute; top: 10px; left: 10px; z-index: 6; padding: 6px 10px; }
+.layout.collapsed #sideOpen { display: block; }
+.layout.collapsed main { padding-left: 64px; }
+body.sidedrag { cursor: col-resize; user-select: none; }
+aside { border-right: 1px solid var(--line); padding: 16px 12px 10px; overflow: hidden; display: flex; flex-direction: column; gap: 4px; }
+#sideNav { flex: 0 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+/* the activity log fills what the list leaves free at the bottom of the sidebar */
+#sideLog { flex: 0 0 auto; margin-top: auto; display: flex; flex-direction: column; border-top: 1px solid var(--line); padding-top: 4px; }
+.loghead { display: flex; align-items: center; justify-content: space-between; }
+.loghead .label { padding: 8px 10px 6px; }
+.loghead button { padding: 2px 8px; font-size: 11px; }
+#logList { flex: none; height: 185px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; padding: 2px 6px 4px 4px; font: 11px/1.4 ui-monospace, Consolas, "Cascadia Mono", monospace; }
+#logList .ln { display: block; white-space: pre-line; overflow-wrap: anywhere; }
+#logList .ts { color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; margin-right: 7px; }
+#logList .tx { color: #c9ced6; }
+#logList .ln.lv-ok .ts { color: var(--ok); }
+#logList .ln.lv-warn .ts, #logList .ln.lv-warn .tx { color: var(--warn); }
+#logList .ln.lv-bad .ts, #logList .ln.lv-bad .tx { color: var(--bad); }
+#logList .day { text-align: center; color: var(--faint); font-size: 10.5px; padding: 6px 0 2px; }
+#logList .none { color: var(--faint); font-family: inherit; padding: 6px 4px; }
 .label { font-size: 11px; font-weight: 700; letter-spacing: .14em; color: var(--faint); padding: 14px 10px 6px; }
 .label:first-child { padding-top: 0; }
+.helplink { margin-left: 4px; color: var(--accent); text-decoration: none; letter-spacing: 0; font-weight: 600; cursor: pointer; }
+.helplink:hover { text-decoration: underline; }
+.dialog.help { width: min(480px, calc(100vw - 32px)); }
+.dialog.help p, .dialog.help li { font-size: 13.5px; line-height: 1.5; }
+.dialog.help ul { margin: 6px 0 10px; padding-left: 20px; display: grid; gap: 5px; }
 .nav {
   display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px; width: 100%;
   text-align: left; padding: 10px 12px; border-radius: 8px; background: transparent; border: 1px solid transparent;
@@ -78,6 +122,7 @@ aside { border-right: 1px solid var(--line); padding: 16px 12px; overflow-y: aut
 }
 .badge.blue { background: rgba(94,205,250,.16); color: var(--accent); }
 .badge.grey { background: rgba(143,150,163,.14); color: var(--muted); }
+.badge.new { background: var(--warn); color: #241a05; }
 .side-actions { display: flex; flex-direction: column; gap: 8px; padding: 12px 2px 0; }
 .side-actions button { width: 100%; }
 details.autos summary { list-style: none; cursor: pointer; }
@@ -89,7 +134,8 @@ main { overflow-y: auto; padding: 24px 28px 96px; min-width: 0; }
 .head { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
 .head h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.01em; }
 .head .sub { color: var(--muted); margin-top: 4px; }
-.head .actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.head .actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; flex: none; }
+.head > div:first-child { flex: 1 1 320px; min-width: 0; } /* the title and its line take what's left, so the buttons stay beside them */
 
 .notice {
   display: flex; gap: 14px; align-items: center; padding: 14px 16px; border-radius: var(--radius);
@@ -112,21 +158,165 @@ main { overflow-y: auto; padding: 24px 28px 96px; min-width: 0; }
 
 .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
 @media (max-width: 1250px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-@media (max-width: 1000px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .layout { grid-template-columns: 220px 1fr; } }
+@media (max-width: 1000px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .layout { --side-max: 220px; } }
+/* The slider scales the automatic card width, so 100% always means "as it is now" whatever the window size. */
+#main { container-type: inline-size; }
+.grid { --n: 5; }
+@media (max-width: 1250px) { .grid { --n: 4; } }
+@media (max-width: 1000px) { .grid { --n: 3; } }
+html.sized #main .grid { grid-template-columns: repeat(auto-fill, minmax(calc((100cqw - 14px * (var(--n) - 1)) / var(--n) * var(--f) - 1px), 1fr)); }
+#sizeCtl { position: absolute; right: 24px; bottom: 14px; z-index: 4; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: rgba(20,23,28,.92); border: 1px solid var(--line); box-shadow: 0 4px 16px rgba(0,0,0,.35); color: var(--muted); font-size: 12px; backdrop-filter: blur(6px); }
+#sizeCtl:hover { color: var(--text); }
+#sizeCtl svg { width: 14px; height: 14px; flex: none; }
+.sizeTrack { position: relative; display: inline-flex; align-items: center; }
+#sizeDef { position: absolute; top: 50%; left: calc(8px + (100 - 50) / (200 - 50) * (100% - 16px)); width: 2px; height: 14px; margin: -7px 0 0 -1px; border-radius: 1px; background: var(--warn); pointer-events: none; }
+#sizeCtl input[type=range] { width: 120px; accent-color: var(--accent); margin: 0; }
+.layout.collapsed #sizeCtl { right: 24px; }
+/* A card's bottom-right corner can be dragged: wider (2 or 3 columns) and taller (shows more of the fit's pieces). */
+.wgrip { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize; z-index: 6; touch-action: none; }
+.wgrip::after { content: ""; position: absolute; right: 4px; bottom: 4px; width: 8px; height: 8px; border-right: 2px solid var(--faint); border-bottom: 2px solid var(--faint); border-radius: 0 0 3px 0; opacity: 0; transition: opacity .12s; }
+.card:hover .wgrip::after, body.wdrag .card.wdragging .wgrip::after { opacity: .8; }
+body.wdrag, body.wdrag * { cursor: nwse-resize !important; user-select: none !important; }
+.card.wide .pic { aspect-ratio: auto; height: calc((100cqw - 14px * (var(--span) - 1)) / var(--span) * 4 / 3); }
+#wReset { width: 24px; height: 24px; padding: 0; display: grid; place-items: center; flex: none; border-radius: 50%; background: transparent; border: 1px solid var(--line); color: var(--muted); cursor: pointer; }
+#wReset[hidden] { display: none; }
+#wReset:hover { color: var(--text); background: var(--panel-2); }
+#wReset svg { width: 13px; height: 13px; }
 .card {
   position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-  overflow: hidden; display: flex; flex-direction: column;
+  overflow: hidden; display: flex; flex-direction: column; container-type: inline-size;
 }
+@container (max-width: 150px) { .card .pic .hint { display: none; } }
 .card.sel { border-color: rgba(94,205,250,.6); }
 .card.pickable { cursor: pointer; }
 .card.pickable:hover { border-color: #3b4250; }
-.card.picked { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.card.picked { border-color: var(--accent); }
+/* the ring is drawn over the card (picture included), so it's even all round and shows at once */
+.card.picked::after {
+  content: ""; position: absolute; inset: 0; border: 2px solid var(--accent); border-radius: inherit;
+  pointer-events: none; z-index: 5;
+}
 .pic {
   position: relative; aspect-ratio: 3 / 4;
   background: radial-gradient(120% 80% at 50% 100%, #262b34 0%, #181b21 60%, #15181d 100%);
   display: grid; place-items: center;
 }
-.pic img { width: 100%; height: 100%; object-fit: contain; }
+.pic img { width: 100%; height: 100%; object-fit: contain; object-position: 50% 80%; pointer-events: none; user-select: none; }
+.pic[data-frames] { cursor: grab; touch-action: pan-y; }
+.pic[data-frames].turning { cursor: grabbing; }
+.pic .hint {
+  position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); font-size: 11px; color: var(--muted);
+  background: rgba(15,17,20,.78); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px;
+  white-space: nowrap; transition: opacity .15s; pointer-events: none;
+}
+.pic[data-frames]:hover .hint, .pic[data-frames].turning .hint { opacity: 0; }
+.picbtns button { position: absolute; bottom: 6px; }
+.picbtns .picboard { left: 6px; }
+.picbtns .picbig { right: 6px; }
+.picbtns button {
+  width: 24px; height: 24px; padding: 0; display: grid; place-items: center; border-radius: 6px; cursor: pointer; z-index: 1;
+  background: rgba(15,17,20,.72); border: 1px solid var(--line); color: var(--text); font-size: 12px; line-height: 1;
+}
+.picbtns button:hover { background: var(--panel-2); }
+.picbtns button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.picbtns svg { width: 12px; height: 14px; pointer-events: none; }
+.picbtns .picreset { left: 50%; transform: translateX(-50%); font-size: 14px; }
+.pic { overflow: hidden; }
+.pic img { position: absolute; inset: 0; transform-origin: 50% 58%; will-change: transform, opacity; }
+/* a turnable picture sits above the corner icons and the hint along the bottom */
+.pic[data-frames] img { top: 2%; bottom: 13%; left: 0; width: 100%; height: 85%; object-position: 50% 100%; }
+/* Zoom: a thin slider down the left edge, there when the picture is hovered (and a little when zoomed in) */
+.pic img, .viewer .stage img { transform: translate(calc(var(--px, 0) * (var(--z, 1) - 1) * 50%), calc(var(--pf, 0) * (var(--z, 1) - 1) * 50%)) scale(var(--z, 1)); }
+.zoombar {
+  position: absolute; left: 7px; top: 39%; height: 40%; width: 16px; z-index: 6; display: grid; place-items: center;
+  opacity: .22; transition: opacity .15s;
+}
+.pic:hover .zoombar, .viewer .stage:hover .zoombar, .zoombar:focus-within { opacity: .85; }
+.pic.zoomed .zoombar, .viewer .stage.zoomed .zoombar { opacity: .4; }
+.pic.zoomed:hover .zoombar, .viewer .stage.zoomed:hover .zoombar { opacity: .95; }
+.pic.turning .zoombar { opacity: 0 !important; }
+.zoomer, .dialog input.zoomer, .viewer .controls input[type=range] {
+  -webkit-appearance: none; appearance: none; background: transparent; margin: 0; padding: 0; border: 0; border-radius: 0; cursor: pointer;
+  writing-mode: vertical-lr; direction: rtl; width: 16px; height: 100%;
+}
+.zoomer::-webkit-slider-runnable-track {
+  width: 2px; border-radius: 2px;
+  background: linear-gradient(to top, var(--accent) var(--fill, 0%), rgba(255,255,255,.28) var(--fill, 0%));
+}
+.zoomer::-webkit-slider-thumb, .viewer .controls input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 10px; height: 10px; border-radius: 50%; margin-left: -4px;
+  background: var(--text, #e8eaed); border: 1px solid rgba(0,0,0,.5);
+}
+.zoomer:hover::-webkit-slider-thumb, .zoomer:active::-webkit-slider-thumb,
+.viewer .controls input[type=range]:hover::-webkit-slider-thumb, .viewer .controls input[type=range]:active::-webkit-slider-thumb { background: var(--accent); }
+.zoomer:focus, .viewer .controls input[type=range]:focus { outline: none; }
+/* the turn slider in the viewer, in the same style (flat, thin, a small round handle) */
+.viewer .controls input[type=range] { height: 16px; width: auto; flex: 1; writing-mode: horizontal-tb; direction: ltr; }
+.viewer .controls input[type=range]::-webkit-slider-runnable-track {
+  height: 2px; border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--vfill, 0%), rgba(255,255,255,.28) var(--vfill, 0%));
+}
+.viewer .controls input[type=range]::-webkit-slider-thumb { margin-left: 0; margin-top: -4.5px; }
+/* "Lock preview?": a small box in the top right corner of a picture; ticked, the picture keeps its look */
+.savepv { position: absolute; top: 7px; right: 7px; z-index: 7; display: flex; flex-direction: row-reverse; align-items: center; gap: 6px; cursor: pointer; opacity: .3; transition: opacity .15s; }
+.pic:hover .savepv, .viewer .stage:hover .savepv, .savepv:focus-within { opacity: .92; }
+.savepv.on { opacity: .5; }
+.pic:hover .savepv.on, .viewer .stage:hover .savepv.on { opacity: .95; }
+.pic.turning .savepv { opacity: 0 !important; }
+.savepv input, .dialog .savepv input { position: absolute; opacity: 0; width: 0; height: 0; padding: 0; margin: 0; border: 0; }
+.savepv { pointer-events: none; } /* its hint's space never blocks the labels under it */
+.savepv .box { pointer-events: auto; width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid rgba(255,255,255,.55); background: rgba(15,17,20,.6); display: grid; place-items: center; box-sizing: border-box; }
+.savepv:hover .box { border-color: var(--accent); }
+.savepv input:checked + .box { background: var(--accent); border-color: var(--accent); }
+.savepv input:checked + .box::after { content: ""; width: 4px; height: 8px; border: solid var(--accent-ink); border-width: 0 2px 2px 0; transform: translateY(-1px) rotate(45deg); }
+.savepv input:focus-visible + .box { outline: 2px solid var(--accent); outline-offset: 2px; }
+.savepv .tip { font-size: 11px; color: var(--muted); background: rgba(15,17,20,.82); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; white-space: nowrap; opacity: 0; transition: opacity .12s; pointer-events: none; }
+.savepv:hover .tip { opacity: 1; }
+/* the hint covers the badges: they step aside while it's showing */
+.pic .badges { transition: opacity .12s; }
+.pic:has(.savepv:hover) .badges { opacity: 0; }
+/* the badges make room for it */
+.pic[data-frames] .badges { right: 32px; }
+.viewer .stage { position: relative; }
+.viewer .zoombar { left: 12px; width: 20px; }
+.pic.zoomed[data-frames] { cursor: grab; }
+.pic .lockhint {
+  position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); font-size: 11px; color: var(--muted); z-index: 1;
+  background: rgba(15,17,20,.78); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px;
+  white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .15s;
+}
+/* only once it's actually been turned (not just pressed): then "click to lock" makes sense */
+.pic[data-frames].spun:hover .lockhint { opacity: 1; }
+.pic[data-frames][data-held]:hover .lockhint { opacity: 0; }
+.viewer .stage { cursor: grab; touch-action: pan-y; }
+.viewer .stage.turning { cursor: grabbing; }
+.viewer { width: min(760px, calc(100vw - 48px)); grid-template-columns: minmax(0, 1fr); } /* the row's contents never widen the dialog */
+.viewer .stage {
+  /* a fixed frame: its size comes from the window alone, never from the picture in it (a larger enhanced picture
+     swapping in must not make the frame jump) */
+  aspect-ratio: 3 / 4; width: min(100%, calc((100vh - 230px) * 0.75)); margin: 0 auto; border-radius: 10px; overflow: hidden;
+  background: radial-gradient(120% 80% at 50% 100%, #262b34 0%, #181b21 60%, #15181d 100%);
+}
+.viewer .stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.viewer .controls { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.viewer .controls button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.viewer .vrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.viewer .vrow .modes { margin: 0; }
+.viewer .enhbar { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.viewer #vEnh { white-space: nowrap; min-width: 118px; } /* wide enough for "Enhance 24/24" */
+.viewer #vEnh.on { border-color: var(--accent); color: var(--text); }
+.viewer .enhprog { display: flex; align-items: center; gap: 10px; margin: -4px 0 10px; font-size: 11.5px; color: var(--muted); }
+.viewer .enhprog[hidden] { display: flex; visibility: hidden; } /* keeps its space, so the picture doesn't jump */
+.viewer .enhprog .bar { flex: 1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.viewer .enhprog .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+.viewer #vEnh:disabled { color: var(--muted); opacity: .45; cursor: not-allowed; } /* grey until a size is picked */
+.viewer .enhsize { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.viewer .enhsize button { border: 0; border-radius: 0; padding: 5px 10px; background: transparent; color: var(--muted); font-size: 12px; }
+.viewer .enhsize button + button { border-left: 1px solid var(--line); }
+.viewer .enhsize button.on { background: var(--panel-2); color: var(--text); }
+.viewer .enhsize button.made { color: #5fd38d; } /* made already this session */
+.viewer .controls input { flex: 1; accent-color: var(--accent); }
+.viewer .angle { color: var(--muted); font-variant-numeric: tabular-nums; width: 76px; text-align: right; }
 .pic .empty { display: grid; justify-items: center; gap: 8px; color: var(--faint); font-size: 12px; text-align: center; padding: 0 10px; }
 .pic .empty svg { width: 46%; opacity: .5; }
 .tag {
@@ -134,16 +324,128 @@ main { overflow-y: auto; padding: 24px 28px 96px; min-width: 0; }
   border-radius: 7px; font-weight: 700; font-size: 12px; background: rgba(15,17,20,.8); border: 1px solid var(--line);
 }
 .pic .badges { position: absolute; top: 9px; right: 8px; display: flex; gap: 4px; flex-direction: column; align-items: flex-end; }
+/* only the most important label shows; the rest open on hover or click */
+.pic .badges .badge.x { display: none; }
+.pic .badges:hover .badge.x, .pic .badges.open .badge.x { display: block; }
+.pic .badges .badge.count { color: var(--muted); background: rgba(15,17,20,.78); border: 1px solid var(--line); letter-spacing: .02em; }
+.pic .badges:hover .badge.count, .pic .badges.open .badge.count { display: none; }
+.pic .badges.stack { cursor: pointer; padding-bottom: 4px; }
+/* favorites */
+:root { --fav-star: #ffc83d; }
+.pic { user-select: none; -webkit-user-select: none; }
+.favmark {
+  position: absolute; top: 8px; left: 8px; z-index: 3; width: 28px; height: 28px; padding: 0; display: grid; place-items: center;
+  border-radius: 50%; background: rgba(15,17,20,.72); border: 1px solid var(--line); cursor: pointer;
+  transition: transform .12s, background .12s;
+}
+.pic:has(.tag) .favmark { top: 38px; }
+/* the HQ copies: grey while they're made in the background, green once they're in use */
+/* top-left column, one under the other, all on the same left edge: slot number, HQ, favorite star */
+.hqchip { position: absolute; top: 8px; left: 8px; z-index: 3; height: 24px; padding: 0 7px; display: grid; place-items: center;
+  border-radius: 7px; font-size: 11px; font-weight: 800; letter-spacing: .04em; color: var(--faint);
+  background: rgba(15,17,20,.8); border: 1px solid var(--line); }
+.hqchip.done { color: #5fd38d; border-color: rgba(95,211,141,.45); }
+.hqchip { position: static; }
+button.hqchip { cursor: pointer; font-family: inherit; }
+button.hqchip:not(.done) { text-decoration: line-through; } /* HQ off: the original is showing */
+.viewer .vhq { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.favmark:hover { transform: scale(1.12); background: rgba(15,17,20,.9); }
+.favmark svg { width: 16px; height: 16px; display: block; pointer-events: none; }
+.favmark svg, .favfx { color: var(--fav-star); }
+.favfx { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 9999; pointer-events: none; }
+.favfx > * { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+.favfx .big svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 4px 16px rgba(0,0,0,.45)) drop-shadow(0 0 18px currentColor); }
+.favfx .ring { border-radius: 50%; border: 3px solid currentColor; box-sizing: border-box; }
+.favfx .bit svg { width: 100%; height: 100%; display: block; }
+button.filterbtn { display: inline-flex; align-items: center; gap: 6px; }
+button.filterbtn svg { width: 14px; height: 14px; }
+button.filterbtn.fav svg { color: var(--fav-star); }
+button.filterbtn.on { background: var(--panel-2); border-color: var(--accent); }
+.filtermenu { min-width: 230px; }
+.ctxmenu.filtermenu button { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.filtermenu .cnt { color: var(--faint); font-variant-numeric: tabular-nums; }
+.filtermenu button.cur { color: var(--accent); font-weight: 600; }
+.filtermenu button:disabled { opacity: .45; }
+.loadbox { display: grid; gap: 4px; justify-items: start; }
+.loadbox .loadnote { font-size: 11.5px; color: var(--muted); max-width: 230px; line-height: 1.35; }
 .check {
   position: absolute; bottom: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
   background: var(--accent); color: var(--accent-ink); font-weight: 800; font-size: 13px;
 }
-.info { padding: 10px 12px 12px; display: grid; gap: 3px; font-size: 12.5px; flex: 1; }
+.info { padding: 10px 12px 12px; display: grid; align-content: start; gap: 3px; font-size: 12.5px; flex: 1; }
 .info .title { font-weight: 650; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 3px; }
-.row { display: grid; grid-template-columns: 54px 1fr; gap: 6px; }
+.row { display: grid; grid-template-columns: 54px 1fr; gap: 0 6px; }
+.info .rows { display: grid; gap: 3px; }
+/* an item the game hasn't got: its name is red */
+.gone, button.more.gone, button.more.gone:hover:not(:disabled) { color: var(--bad); }
+.details .item .why { grid-column: 2; font-size: 11px; color: var(--bad); }
 .row .k { color: var(--faint); }
 .row .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .more { color: var(--faint); font-size: 12px; }
+/* "+ N more": a link, not a button */
+button.more {
+  background: none; border: 0; padding: 0; height: auto; cursor: pointer; text-align: left; justify-self: start;
+  color: var(--accent); text-decoration: none; text-underline-offset: 3px; border-radius: 3px;
+}
+button.more:hover:not(:disabled) { color: #8fdcfc; text-decoration: underline; background: none; border-color: transparent; }
+button.more:active { color: #3fb0dd; }
+button.more:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dialog.details {
+  width: min(560px, calc(100vw - 48px)); max-height: calc(100vh - 80px);
+  grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden;
+}
+.details .list { overflow-y: auto; min-height: 0; margin: 2px -6px 0 0; padding-right: 6px; overscroll-behavior: contain; }
+.details .sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
+.details h3 { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin: 14px 0 6px; }
+.details .item { display: grid; grid-template-columns: 96px 1fr; gap: 2px 12px; padding: 7px 0; border-top: 1px solid var(--line); }
+.details .item .rmItem { grid-column: 2; justify-self: start; font-size: 11.5px; padding: 3px 10px; margin: 3px 0 2px; }
+.details .item .cat { color: var(--muted); font-size: 12px; padding-top: 1px; }
+.details .item .name { font-weight: 600; }
+.details .item .key { grid-column: 2; color: var(--faint); font-size: 11px; font-family: ui-monospace, Consolas, monospace; word-break: break-all; }
+.details .item .mod { grid-column: 2; font-size: 11px; color: var(--accent); }
+select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; }
+.dialog.settings { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; }
+.dialog.settings section { border-top: 1px solid var(--line); padding: 14px 0 16px; display: grid; gap: 8px; }
+.dialog.settings section:first-of-type { border-top: 0; padding-top: 4px; }
+.dialog.settings h3 { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.dialog.settings .hint { margin: 0; font-size: 12px; color: var(--muted); }
+.dialog.settings .row { display: flex; gap: 8px; align-items: center; }
+.dialog.settings .row input { flex: 1; min-width: 0; margin: 0; }
+.dialog.settings .field { display: grid; gap: 6px; font-size: 13px; }
+.dialog.settings section > button { justify-self: start; }
+.dialog.settings .opt { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.dialog.settings .opt input { width: auto; margin: 0; }
+.dialog.settings .buttons { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 0; }
+.dialog.settings .storage { display: grid; gap: 7px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.dialog.settings .st-top { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.dialog.settings .st-top span { color: var(--muted); }
+.dialog.settings .st-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--line); }
+.dialog.settings .st-bar i { display: block; height: 100%; background: var(--accent); }
+.dialog.settings .st-bar i.copies, .dialog.settings .st-legend i.copies { background: #8a93a3; }
+.dialog.settings .st-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); }
+.dialog.settings .st-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); margin-right: 5px; }
+.backprompt { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; padding: 14px 16px; box-shadow: 0 10px 40px rgba(0,0,0,.45); display: grid; gap: 10px; min-width: 300px; }
+.backprompt .bp-text { font-weight: 600; }
+.backprompt .bp-buttons { display: flex; gap: 8px; }
+.backprompt .opt { font-size: 12px; color: var(--muted); }
+.backups { max-height: 190px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.backups .bk { display: flex; align-items: center; gap: 10px; padding: 7px 10px; font-size: 12px; border-top: 1px solid var(--line); }
+.backups .bk:first-child { border-top: 0; }
+.backups .bk .bk-what { flex: 1; min-width: 0; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.backups .bk button { padding: 3px 9px; font-size: 12px; }
+.livechg { margin: 2px 0 6px; font-size: 11.5px; line-height: 1.35; color: #f5b446; }
+.badge.amber { background: rgba(245,180,70,.16); color: #f5b446; border-color: rgba(245,180,70,.35); }
+.ctxmenu {
+  position: fixed; z-index: 30; min-width: 190px; padding: 5px; border-radius: 10px; background: var(--panel);
+  border: 1px solid var(--line); box-shadow: 0 14px 40px rgba(0,0,0,.45); display: grid;
+}
+.ctxmenu button { justify-content: flex-start; text-align: left; background: transparent; border-color: transparent; padding: 7px 10px; border-radius: 6px; }
+.ctxmenu button:hover:not(:disabled) { background: var(--panel-2); border-color: transparent; }
+.ctxmenu .note { color: var(--faint); font-size: 11px; padding: 2px 10px 4px; }
+.dialog .steps { margin: 0; padding-left: 20px; color: var(--muted); display: grid; gap: 6px; }
+.dialog .steps b { color: var(--text); font-weight: 600; }
+.details .facts { color: var(--muted); font-size: 12px; display: grid; gap: 3px; }
 .foot { display: flex; gap: 4px; padding: 0 10px 10px; flex-wrap: wrap; }
 .slot-empty {
   border: 1.5px dashed #343a45; border-radius: var(--radius); display: grid; place-items: center; gap: 6px;
@@ -154,17 +456,51 @@ main { overflow-y: auto; padding: 24px 28px 96px; min-width: 0; }
 
 .toolbar { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; }
 .toolbar input { flex: 1; max-width: 420px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: transparent; padding: 6px 12px; font-size: 13px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: var(--accent); color: var(--accent-ink); }
+.pic .empty svg { width: 22px; height: 30px; opacity: .5; }
 .pickbar {
   position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 5;
   display: flex; gap: 10px; align-items: center; padding: 10px 12px 10px 18px; border-radius: 12px;
   background: #20252d; border: 1px solid #3b4250; box-shadow: 0 16px 40px rgba(0,0,0,.45);
 }
 
+/* scrollbars: thin and flat, in the app's colours */
+* { scrollbar-width: thin; scrollbar-color: #3a404b transparent; }
 .scrim { position: fixed; inset: 0; background: rgba(5,6,8,.66); display: grid; place-items: center; z-index: 10; }
 .dialog {
   width: min(480px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line);
   border-radius: 14px; padding: 22px; display: grid; gap: 14px; box-shadow: 0 30px 80px rgba(0,0,0,.5);
 }
+.dialog.mix { width: min(1180px, calc(100vw - 32px)); height: min(760px, calc(100vh - 32px)); grid-template-rows: auto 1fr auto; }
+.mix h2 { margin: 0; }
+.mix .cols { display: grid; grid-template-columns: 1fr 320px 1fr; gap: 18px; min-height: 0; }
+.mix .col { display: flex; flex-direction: column; min-height: 0; }
+.mix .lab { font-size: 11px; letter-spacing: .08em; color: var(--faint); text-transform: uppercase; margin-bottom: 8px; }
+.mix .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; overflow-y: auto; grid-auto-rows: max-content; align-content: start; padding: 2px; min-height: 0; }
+.mix .tile { border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); overflow: hidden; position: relative; cursor: pointer; padding: 0; text-align: left; display: block; }
+.mix .tile.sel { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(94,205,250,.35); }
+.mix .tile .im { height: 120px; display: grid; place-items: center; background: #11141a; }
+.mix .tile .im img { width: 100%; height: 100%; object-fit: contain; }
+.mix .tile .im svg { width: 46px; height: 86px; color: #3a414d; }
+.mix .pv .empty svg { width: 30px; height: 56px; color: #3a414d; }
+.mix .tile b { display: block; padding: 6px 8px 7px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mix .tile .chk { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: none; place-items: center; font-weight: 800; font-size: 12px; }
+.mix .tile.sel .chk { display: grid; }
+.mix .mid { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; }
+.mix .pv { height: 210px; border-radius: 10px; background: #11141a; position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 30px 6px 6px; flex: none; }
+.mix .pv img { width: 100%; height: 100%; object-fit: contain; min-height: 0; }
+.mix .pv .empty { display: grid; place-items: center; color: var(--faint); font-size: 12px; text-align: center; }
+.mix .pv .tg { position: absolute; top: 8px; font-size: 10px; letter-spacing: .05em; font-weight: 700; padding: 2px 7px; border-radius: 99px; background: rgba(0,0,0,.5); color: var(--muted); max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mix .row { grid-template-columns: 76px 1fr; gap: 0 6px; }
+.mix .row .v { white-space: normal; }
+.mix .from { color: var(--accent); font-size: 10.5px; margin-left: 4px; }
+.mix .note { font-size: 11.5px; color: var(--muted); background: #12151a; border: 1px dashed var(--line); border-radius: 8px; padding: 7px 9px; }
+.mix .foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.mix .hint { color: var(--muted); font-size: 12px; }
+@media (max-width: 900px) { .mix .cols { grid-template-columns: 1fr; overflow-y: auto; } .mix .tiles { max-height: 240px; } }
 .dialog.wide { width: min(1100px, calc(100vw - 48px)); max-height: calc(100vh - 48px); grid-template-rows: auto auto 1fr auto; }
 .dialog.wide .grid { overflow-y: auto; padding: 2px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); grid-auto-rows: max-content; align-content: start; min-height: 0; }
 .dialog.wide .info { padding: 8px 10px 10px; }
@@ -179,6 +515,12 @@ main { overflow-y: auto; padding: 24px 28px 96px; min-width: 0; }
   box-shadow: 0 12px 30px rgba(0,0,0,.4); animation: up .18s ease-out;
 }
 .toast.bad { border-color: rgba(255,107,107,.6); }
+.progress { position: fixed; left: 50%; top: 22px; transform: translateX(-50%); z-index: 30; width: min(420px, 90vw); background: var(--panel, #1c2230); border: 1px solid rgba(255,255,255,.18); border-radius: 12px; padding: 14px 16px; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+.progress b { display: block; margin-bottom: 4px; }
+.progress .sub2 { font-size: 12px; opacity: .75; margin-bottom: 10px; }
+.progress .bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; position: relative; }
+.progress .bar::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 35%; border-radius: 3px; background: var(--accent, #4f9dff); animation: slide 1.1s ease-in-out infinite; }
+@keyframes slide { from { left: -35%; } to { left: 100%; } }
 @keyframes up { from { transform: translateY(8px); opacity: 0; } }
 .blank { color: var(--muted); padding: 40px 0; text-align: center; }
 </style>
@@ -186,12 +528,22 @@ main { overflow-y: auto; padding: 24px 28px 96px; min-width: 0; }
 <body>
 <header>
   <div class="brand"><b>PRESET WARDROBE</b><span>for ReSkate</span></div>
+  <div class="status" id="pluginStatus" title="Whether the PresetWardrobe plugin is in your game folder"><span class="dot"></span><span id="pluginText">Looking for the plugin…</span></div>
   <div class="status" id="status"><span class="dot"></span><span id="statusText">Looking for skate.…</span></div>
+  <button id="updBtn" hidden></button>
   <button class="ghost" id="settingsBtn">Settings</button>
 </header>
-<div class="layout">
-  <aside id="side"></aside>
+<div class="layout" id="layout">
+  <aside id="side"><div id="sideNav"></div><section id="sideLog" aria-label="Activity log"><div class="loghead"><span class="label">ACTIVITY</span><button class="ghost small" id="logClear" title="Clear the log">Clear</button></div><div id="logList" role="log" aria-live="polite"></div></section></aside>
+  <div id="sideGrip" title="Drag to resize the sidebar"></div>
+  <button id="sideOpen" title="Show the sidebar" aria-label="Show the sidebar">☰</button>
   <main id="main"></main>
+  <div id="sizeCtl" title="Make the pictures smaller or bigger.">
+    <button id="wReset" type="button" hidden title="Put every card back to its normal size" aria-label="Reset card sizes"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8a5.5 5.5 0 1 0 1.8-4.1"/><path d="M2.5 2.5v3h3"/></svg></button>
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+    <span class="sizeTrack"><input type="range" id="sizeRange" min="50" max="200" step="5" aria-label="Picture size"><i id="sizeDef" title="The automatic size"></i></span>
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" style="width:17px;height:17px"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/></svg>
+  </div>
 </div>
 <div class="toasts" id="toasts"></div>
 <input type="file" id="importFile" accept=".wardrobe,.zip" hidden>
@@ -199,17 +551,102 @@ main { overflow-y: auto; padding: 24px 28px 96px; min-width: 0; }
 <script>
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+// The snap key as ReSkate has it (Settings > Controls in the game; the app reads it): F8 unless changed. "" means
+// the player cleared it. On a controller, holding Y in the Skaters menu snaps too.
+const snapKeyText = () => { const k = S && S.hotkeys ? S.hotkeys.key : "F8"; return k === "" ? "your snap key" : (k || "F8"); };
+const snapKey = () => { const k = S && S.hotkeys ? S.hotkeys.key : "F8"; return k === "" ? "your snap key" : `<span class="kbd">${esc(k || "F8")}</span>`; };
+const snapPad = () => esc((S && S.hotkeys && S.hotkeys.pad) || "");
+// " (or hold Y in the Skaters menu)", when there's a controller button.
+const snapPadNote = () => snapPad() ? ` (or hold <span class="kbd">${snapPad()}</span> on a controller)` : "";
 let S = null, lastJSON = "", view = "lineup", busy = false, search = "", picked = [];
+let loadNote = null; // {id, text}: the note under "Load into game", shown only after a load went through
+// The Fit Catalogue's Show filter: "both" (skater and board), "skater" or "board". Each card's
+// picture and pieces follow it.
+let catShow = "both";
+// Fit Catalogue: only the favorites
+let catFilter = "";
+try { catFilter = localStorage.getItem("catFilter") || ""; } catch (e) {}
+// The filters on offer: key, label, and which fits they keep (the same tags the cards carry)
+const FILTERS = [
+  ["favorite", "Favorites", f => f.favorite],
+  ["ingame", "In game", f => f.in_game],
+  ["new", "New", f => f.new],
+  ["mixed", "Mixed", f => f.mixed],
+  ["requested", "Picture asked", f => f.requested],
+  ["rotation", "In a rotation", f => f.rotations.length > 0],
+  ["picked", "Picked for rotation", f => picked.includes(f.hash)]];
+const filterIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8.5V20l-4-2v-4.5z"/></svg>`;
+try { catShow = localStorage.getItem("catShow") || "both"; } catch (e) {}
+const BOARD_CATS = ["Deck", "Grip", "Grip cutout", "Trucks", "Wheels"];
+function piecesFor(item, show) {
+  if (show === "skater") return item.pieces.filter(p => !p.board);
+  if (show === "board") return item.pieces.filter(p => p.board);
+  return item.pieces;
+}
 const fitsBy = () => Object.fromEntries(S.fits.map(f => [f.hash, f]));
 
 const silhouette = `<svg viewBox="0 0 64 120" fill="currentColor" aria-hidden="true"><circle cx="32" cy="14" r="11"/><path d="M14 32c0-4 4-7 8-7h20c4 0 8 3 8 7l4 34c.4 3-2 5-4.6 5H50l-2 44c0 2.5-2 4-4.4 4h-1.2c-2.4 0-4.2-1.7-4.4-4L36 74h-8l-2 41c-.2 2.3-2 4-4.4 4h-1.2C18 119 16 117.5 16 115l-2-44h-1.4C10 71 7.6 69 8 66z"/></svg>`;
 
-function toast(msg, bad) {
+// ---- the activity log (the sidebar's lower part) ----
+// Every message the app shows, with the time, plus what only the program sees (it hands those over at /api/log).
+// Kept in this window's storage so it's still there after a restart, the last 200 lines.
+const LOG_MAX = 200;
+let logs = [], logCleared = 0, logBoot = 0, logAfter = 0, logSave = 0;
+try { logs = JSON.parse(localStorage.getItem("pw-log") || "[]"); logCleared = +localStorage.getItem("pw-log-cleared") || 0; } catch (e) { logs = []; }
+const logLevel = (msg, bad) => bad ? "bad"
+  : /isn't installed|is missing|missing|couldn't|could not|can't|cannot|wasn't|failed|error|skipped|need a look|stays as it is/i.test(msg) ? "warn"
+  : /\b(added|saved|renamed|removed|loaded|swapped|imported|exported|done|finished|changed|now has|updated|set)\b/i.test(msg) ? "ok" : "info";
+function addLog(level, text, t = Date.now(), id = "") {
+  if (!text) return;
+  if (id && logs.some(l => l.id === id)) return;
+  logs.push({id: id || "l" + t + Math.random().toString(36).slice(2, 6), t, level, text: String(text)});
+  logs.sort((a, b) => a.t - b.t);
+  if (logs.length > LOG_MAX) logs = logs.slice(-LOG_MAX);
+  clearTimeout(logSave);
+  logSave = setTimeout(() => { try { localStorage.setItem("pw-log", JSON.stringify(logs)); } catch (e) {} }, 400);
+  renderLog();
+}
+function renderLog() {
+  const box = document.getElementById("logList");
+  if (!box) return;
+  const stick = box.scrollHeight - box.scrollTop - box.clientHeight < 28;
+  let day = "", html = "";
+  for (const l of logs) {
+    const d = new Date(l.t), dk = d.toDateString();
+    if (dk !== day) {
+      day = dk;
+      html += `<div class="day">${dk === new Date().toDateString() ? "Today" : esc(d.toLocaleDateString([], {month: "short", day: "numeric"}))}</div>`;
+    }
+    const ts = d.toLocaleTimeString([], {hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"});
+    html += `<div class="ln lv-${l.level}" title="${esc(d.toLocaleString())}"><span class="ts">${ts}</span><span class="tx">${esc(l.text)}</span></div>`;
+  }
+  box.innerHTML = html || `<div class="none">Nothing yet. What the app does shows up here.</div>`;
+  if (stick) box.scrollTop = box.scrollHeight;
+}
+async function pollLog() {
+  try {
+    const r = await fetch(`/api/log?boot=${logBoot}&after=${logAfter}`);
+    const j = await r.json();
+    if (j.boot !== logBoot) { logBoot = j.boot; logAfter = 0; }
+    for (const e of j.entries || []) {
+      logAfter = Math.max(logAfter, e.id);
+      if (e.t > logCleared) addLog(e.level, e.text, e.t, "s" + j.boot + "-" + e.id);
+    }
+  } catch (e) {}
+}
+document.getElementById("logClear").onclick = () => {
+  logs = []; logCleared = Date.now();
+  try { localStorage.setItem("pw-log", "[]"); localStorage.setItem("pw-log-cleared", String(logCleared)); } catch (e) {}
+  renderLog();
+};
+
+function toast(msg, bad, nolog) {
+  if (!nolog) addLog(logLevel(msg, bad), msg);
   const t = document.createElement("div");
   t.className = "toast" + (bad ? " bad" : "");
   t.textContent = msg;
   $("#toasts").append(t);
-  setTimeout(() => t.remove(), bad ? 6500 : 4000);
+  setTimeout(() => t.remove(), bad ? 6500 : (msg.startsWith("Live:") ? 10000 : 4000));
 }
 
 async function api(path, body, raw) {
@@ -243,7 +680,14 @@ function dialog({title, text, input, okText = "OK", danger, cancel = true}) {
 async function act(fn) {
   if (busy) return;
   busy = true;
-  try { const r = await fn(); if (r && r.message) toast(r.message); }
+  try {
+    const r = await fn();
+    if (r && r.log) { // the pop-up stays short; the detail goes in the log
+      addLog(logLevel(r.headline || r.message, false), r.headline || r.message);
+      r.log.forEach(l => addLog(l.level, l.text));
+      if (r.message) toast(r.message, false, true);
+    } else if (r && r.message) toast(r.message);
+  }
   catch (e) { toast(e.message, true); }
   finally { busy = false; await refresh(true); }
 }
@@ -258,25 +702,236 @@ function when(iso) {
 }
 
 // The picture and the outfit's main pieces: shared by every card.
-function pic(item, tag, badges = "") {
-  return `<div class="pic">
-    ${item.picture ? `<img src="${esc(item.picture)}" alt="" loading="lazy">` : `<div class="empty">${silhouette}<span>No picture yet</span></div>`}
+// A full spin's slider has one more stop at the end, back at the front, so dragging all the way
+// across goes the whole way round. A part turn just ends where it stopped.
+const isFullSpin = frames => frames.length >= 20;
+const stops = frames => frames.length + (isFullSpin(frames) ? 1 : 0);
+// Board views: bottom, side, griptape, other side. A card shows the outfit or the board; which one
+// is kept per picture, so the page redrawing doesn't flip it back.
+const BOARD_VIEWS = ["Bottom", "Side", "Griptape", "Other side"];
+const favIcon = () => `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`;
+const boardIcon = `<svg viewBox="0 0 12 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="1" width="6" height="14" rx="3"/><circle cx="6" cy="4.5" r=".6" fill="currentColor"/><circle cx="6" cy="11.5" r=".6" fill="currentColor"/></svg>`;
+const boardMode = new Set();
+const holds = new Map(); // picture -> frame: clicked, so it stays turned where you leave it
+// Zoom: how far a picture is zoomed in (1 to 3) and panned up or down (-1 to 1), by picture; the outfit and the board of a fit share it.
+// Kept so the page being redrawn doesn't undo it.
+const zooms = new Map();
+const ZMAX = 5;
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const zget = k => zooms.get(k) || {z: 1, f: 0, x: 0};
+// ---- saved previews ("Lock preview?"): a fit's look, kept by the app --------------------------------
+const applied = new Map();   // fit -> the saved look last put on screen, so a redraw doesn't undo what you're doing
+const pvTimers = new Map(), pvBusy = new Map();
+const viewSig = (v, picture) => `${(+v.z).toFixed(3)}|${(+v.f).toFixed(3)}|${(+v.x || 0).toFixed(3)}|${v.n | 0}|${v.board ? 1 : 0}|${picture}`;
+function applyView(item, v) {
+  const board = !!v.board && hasBoard(item);
+  if (board) boardMode.add(item.picture); else boardMode.delete(item.picture);
+  zset(item.picture, v.z, v.f, v.x || 0);
+  if (v.n > 0) holds.set(item.picture, v.n); else holds.delete(item.picture);
+}
+function syncViews() {
+  const views = S.views || {};
+  for (const item of [...S.fits, ...S.lineup]) {
+    if (!item.hash || !item.picture) continue;
+    const v = views[item.hash];
+    if (!v) { applied.delete(item.hash); continue; }
+    if ((pvBusy.get(item.hash) || 0) > Date.now() || pvTimers.has(item.hash)) continue; // being changed right now
+    const sig = viewSig(v, item.picture);
+    if (applied.get(item.hash) === sig) continue;
+    applied.set(item.hash, sig);
+    applyView(item, v);
+  }
+}
+function pvCapture(el) {
+  if (el._capture) return el._capture();
+  const v = zget(el.dataset.zkey);
+  return {z: v.z, f: v.f, x: v.x, n: el.dataset.held !== undefined ? (el._n || 0) : 0, board: el.dataset.mode === "board"};
+}
+async function pvSave(hash, view, picture) {
+  S.views = S.views || {};
+  pvBusy.set(hash, Date.now() + 2500);
+  if (view) { S.views[hash] = view; applied.set(hash, viewSig(view, picture)); }
+  else { delete S.views[hash]; applied.delete(hash); }
+  try { await api("/api/preview", {hash, view}); } catch (_) {}
+}
+// A picture whose preview is saved keeps up with what's done to it.
+function pvTouch(el) {
+  const hash = el && el.dataset && el.dataset.hash;
+  if (!hash || !S || !S.views || !S.views[hash]) return;
+  clearTimeout(pvTimers.get(hash));
+  pvTimers.set(hash, setTimeout(() => { pvTimers.delete(hash); pvSave(hash, pvCapture(el), el.dataset.main); }, 400));
+}
+const saveBox = (hash, saved) => hash ? `<label class="savepv${saved ? " on" : ""}" title="${saved ? "Preview locked: untick to unlock it" : "Lock preview?"}"><input type="checkbox" class="savepv-in"${saved ? " checked" : ""} aria-label="Lock preview"><span class="box"></span><span class="tip">${saved ? "Preview locked" : "Lock preview?"}</span></label>` : "";
+function zset(k, z, f, x = 0) {
+  z = clamp(z, 1, ZMAX);
+  if (z <= 1.001) zooms.delete(k);
+  else zooms.set(k, {z, f: clamp(f, -1, 1), x: clamp(x, -1, 1)});
+}
+const zoomBar = z => `<div class="zoombar" title="Zoom (double-click to reset)"><input type="range" class="zoomer" min="1" max="${ZMAX}" step="0.05" value="${z}" style="--fill:${(z - 1) / (ZMAX - 1) * 100}%" aria-label="Zoom"></div>`;
+// Puts a picture's zoom on its box (a card's picture, or the viewer's stage).
+function zapply(el) {
+  const v = zget(el.dataset.zkey);
+  el.style.setProperty("--z", v.z);
+  el.style.setProperty("--pf", v.f);
+  el.style.setProperty("--px", v.x || 0);
+  el.classList.toggle("zoomed", v.z > 1);
+  if (v.z > 1) { // zoomed in: the full-size picture
+    const im = el.querySelector("img:not(.zoomto)"), cur = im && im.getAttribute("src");
+    if (cur && /[?&]w=1/.test(cur)) im.setAttribute("src", fullSize(cur));
+  }
+  const r = el.querySelector(".zoomer");
+  if (r) { r.value = v.z; r.style.setProperty("--fill", (v.z - 1) / (ZMAX - 1) * 100 + "%"); }
+}
+// Dragging up or down pans a zoomed picture (sideways still turns it).
+function zpan(el) {
+  return {
+    can: () => zget(el.dataset.zkey).z > 1.001,
+    by: dy => {
+      const k = el.dataset.zkey, v = zget(k);
+      const img = el.querySelector("img:not(.zoomto)");
+      const max = (v.z - 1) / 2 * (img ? img.clientHeight : 0);
+      if (max > 0) { zset(k, v.z, v.f + dy / max, v.x || 0); zapply(el); pvTouch(el); }
+    },
+  };
+}
+// The pointer's offset from the picture's centre, in pixels.
+function zimg(el) { return el.querySelector("img:not(.zoomto)"); }
+function zrel(el, e) {
+  const img = zimg(el), r = el.getBoundingClientRect();
+  if (!img) return {cx: 0, cy: 0};
+  return {cx: e.clientX - (r.left + img.offsetLeft + img.clientWidth / 2), cy: e.clientY - (r.top + img.offsetTop + img.clientHeight / 2)};
+}
+// Zooms to z2 keeping the point (cx, cy) under the pointer where it is.
+function zoomAt(el, z2, cx = 0, cy = 0) {
+  const k = el.dataset.zkey, v = zget(k), img = zimg(el);
+  if (!img) return;
+  z2 = clamp(z2, 1, ZMAX);
+  const W = img.clientWidth, H = img.clientHeight, ratio = z2 / v.z;
+  const tx = (v.x || 0) * (v.z - 1) * W / 2, ty = v.f * (v.z - 1) * H / 2;
+  const tx2 = cx - (cx - tx) * ratio, ty2 = cy - (cy - ty) * ratio, d = z2 - 1;
+  zset(k, z2, d > 0.001 ? ty2 / (d * H / 2) : 0, d > 0.001 ? tx2 / (d * W / 2) : 0);
+  zapply(el); pvTouch(el);
+}
+const hasBoard = item => !!(item.board && item.board.length === 4);
+// Pictures on the grid load as smaller copies (?w=1); turning or zooming one loads the full size.
+// the HQ copies (/hq/…webp, made in the background) stand for the originals (/pic/…png) they were made from
+const toPic = u => u && u.startsWith("/hq/") ? u.replace("/hq/", "/pic/").replace(".webp?", ".png?").replace(/\.webp$/, ".png") : u;
+const enhanced = (u, s) => toPic(u).replace("/pic/", "/enhance/").replace(/[?&]w=1/, "") + (u.includes("?") ? "&" : "?") + "s=" + s;
+// Enhanced pictures, for the rest of this session (gone when the app closes): picture -> the size it was enhanced at.
+// A fit enhanced in the viewer shows enhanced everywhere in the app; other fits are untouched.
+let ENHPICS = {};
+// PARKED (come back to upscaling options): try { ENHPICS = JSON.parse(sessionStorage.getItem("pw-enh-pics") || "{}") || {}; } catch (e) {}
+const saveEnhPics = () => { try { sessionStorage.setItem("pw-enh-pics", JSON.stringify(ENHPICS)); } catch (e) {} };
+const enhOf = u => u && ENHPICS[toPic(u).replace(/[?&]w=1/, "")];
+// Enhanced pictures are large: they are fetched and decoded ahead, kept, and only swapped in once decoded, so a
+// spin never shows a blank (bright) frame or skips while a picture decodes.
+// Memory: spins use at most 2x (above that the extra detail only shows when still and zoomed in), only the two
+// fits shown most recently are kept decoded, and of the larger still pictures only the last few.
+const SPIN_MAX = 2, KEEP_FITS = 2, KEEP_STILL = 3;
+const spinSize = n => Math.min(n, SPIN_MAX);
+const decodedPics = new Map(); // url -> { im, ok, p }
+const picFit = url => (url.match(/^\/(?:enhance|hq)\/([^/?.]+)/) || [])[1] || url;
+const picSize = url => Number((url.match(/[?&]s=(\d)/) || [])[1] || 0);
+let fitOrder = [], stillOrder = [];
+function dropPic(url) {
+  const e = decodedPics.get(url);
+  if (e && e.ok) { e.im.src = ""; decodedPics.delete(url); } // one still loading is left to finish
+}
+function warmPic(url) {
+  let e = decodedPics.get(url);
+  if (!e) {
+    const im = new Image();
+    e = { im, ok: false };
+    e.p = (im.src = url, im.decode()).then(() => { e.ok = true; return true; }).catch(() => { decodedPics.delete(url); return false; });
+    decodedPics.set(url, e);
+  }
+  if (picSize(url) > SPIN_MAX) { // a large still picture: only the last few are kept
+    stillOrder = [url, ...stillOrder.filter(u => u !== url)];
+    stillOrder.splice(KEEP_STILL).forEach(dropPic);
+  } else { // spin pictures: the fits shown most recently
+    const f = picFit(url);
+    if (fitOrder[0] !== f) {
+      fitOrder = [f, ...fitOrder.filter(x => x !== f)];
+      const gone = new Set(fitOrder.splice(KEEP_FITS));
+      if (gone.size) [...decodedPics.keys()].filter(u => picSize(u) <= SPIN_MAX && gone.has(picFit(u))).forEach(dropPic);
+    }
+  }
+  return e.p;
+}
+const bigPic = url => url.startsWith("/enhance/") || url.startsWith("/hq/");
+const picReady = url => !bigPic(url) || (decodedPics.get(url) || {}).ok;
+const showPic = u => u && toPic(u).startsWith("/pic/") && enhOf(u) ? enhanced(u, spinSize(enhOf(u))) : u; // full size (enhanced at most 2x) if this fit was
+const thumb = u => { const p = toPic(u); return !p || !p.startsWith("/pic/") ? u : enhOf(p) ? enhanced(p, spinSize(enhOf(p))) : p + (p.includes("?") ? "&" : "?") + "w=1"; }; // a card at rest: the small copy
+const fullSize = u => u.replace(/[?&]w=1/, "");
+function setOf(item, board) {
+  if (board) return item.board;
+  return item.frames && item.frames.length > 1 ? item.frames : [item.picture];
+}
+
+// Status labels: only the most important one shows on the picture, the others open on hover or click.
+// stackBadges takes [weight, html] pairs; the heaviest shows first.
+function stackBadges(list) {
+  const h = list.filter(x => x && x[1]).sort((a, b) => b[0] - a[0]).map(x => x[1]);
+  if (h.length < 2) return h.join("");
+  return h[0] + `<span class="badge count" title="${h.length - 1} more: hover or click to see them">+${h.length - 1}</span>` + h.slice(1).map(x => x.replace('class="badge', 'class="badge x')).join("");
+}
+function pic(item, tag, badges = "", lock = "") {
+  if (lock === "board" && !hasBoard(item)) {
+    return `<div class="pic"><div class="empty">${boardIcon}<span>No board pictures yet</span></div>
+      ${tag ? `<span class="tag">${esc(tag)}</span>` : ""}${badges ? `<div class="badges${badges.includes("badge count") ? " stack" : ""}">${badges}</div>` : ""}</div>`;
+  }
+  if (lock === "board") item = {...item, frames: item.board, picture: item.board[0], board: null};
+  else if (lock === "skater") item = {...item, board: null};
+  const board = item.picture && hasBoard(item);
+  const spin = item.picture && item.frames && item.frames.length > 1;
+  const onBoard = board && boardMode.has(item.picture);
+  const set = (spin || board) ? setOf(item, onBoard) : null;
+  const zk = set ? item.picture : null;
+  const zv = zk ? zget(zk) : {z: 1, f: 0, x: 0};
+  const held = set && holds.has(item.picture) ? holds.get(item.picture) % set.length : null;
+  return `<div class="pic${zv.z > 1 ? " zoomed" : ""}"${zk ? ` data-zkey="${esc(zk)}" style="--z:${zv.z};--pf:${zv.f};--px:${zv.x || 0}"` : ""}${item.hash ? ` data-hash="${esc(item.hash)}"` : ""}${set ? ` data-frames="${esc(JSON.stringify(set))}" data-main="${esc(item.picture)}" data-title="${esc(item.name || "")}"${lock === "board" ? ` data-boardonly="1"` : ""}
+      data-outfit="${esc(JSON.stringify(setOf(item, false)))}"${held !== null ? ` data-held="${held}"` : ""}${board ? ` data-board="${esc(JSON.stringify(item.board))}"` : ""}${onBoard ? ` data-mode="board"` : ""}` : ""}>
+    ${item.picture ? `<img src="${esc(zv.z > 1 ? showPic(set ? set[held || 0] : item.picture) : thumb(set ? set[held || 0] : item.picture))}" alt="" loading="lazy" decoding="async">` : `<div class="empty">${silhouette}<span>No picture yet</span></div>`}
+    ${set ? zoomBar(zv.z) : ""}
+    ${set ? saveBox(item.hash, !!(S.views && item.hash && S.views[item.hash])) : ""}
+    ${set ? `<span class="lockhint">click to lock ↺</span>${held === null ? `<span class="hint">↔ drag to turn</span>` : ""}
+    <div class="picbtns">${held !== null ? `<button class="picreset" title="Back to the front" aria-label="Back to the front">↺</button>` : ""}${board ? `<button class="picboard${onBoard ? " on" : ""}" title="${onBoard ? "Show the outfit" : "Show the board"}" aria-label="Board">${boardIcon}</button>` : ""}<button class="picbig" title="View larger" aria-label="View larger">⤢</button></div>` : ""}
     ${tag ? `<span class="tag">${esc(tag)}</span>` : ""}
-    ${badges ? `<div class="badges">${badges}</div>` : ""}
+    ${item.favorite && item.hash ? `<button class="favmark" data-fav="${esc(item.hash)}" title="Favorite: click to remove" aria-label="Remove from favorites">${favIcon()}</button>` : ""}
+    ${badges ? `<div class="badges${badges.includes("badge count") ? " stack" : ""}">${badges}</div>` : ""}
   </div>`;
 }
-function rows(pieces) {
-  const main = ["Headwear", "Top", "Bottoms", "Shoes", "Deck"];
-  const label = {Headwear: "Head", Top: "Top", Bottoms: "Bottoms", Shoes: "Shoes", Deck: "Deck"};
+const MISSING_MSG = "The game is missing this file: its mod isn't installed or is disabled.";
+function rows(pieces, id, show = "both") {
+  const main = show === "board" ? ["Deck", "Grip", "Trucks", "Wheels"] : show === "skater" ? ["Headwear", "Top", "Bottoms", "Shoes"] : ["Headwear", "Top", "Bottoms", "Shoes", "Deck"];
+  const label = {Headwear: "Head", Top: "Top", Bottoms: "Bottoms", Shoes: "Shoes", Deck: "Deck", Grip: "Grip", Trucks: "Trucks", Wheels: "Wheels"};
   const shown = main.map(c => pieces.find(x => x.category === c)).filter(Boolean);
-  const rest = pieces.filter(x => !shown.includes(x));
-  return shown.map(x => `<div class="row"><span class="k">${label[x.category]}</span><span class="v" title="${esc(x.title)}">${esc(x.title)}</span></div>`).join("")
-    + (rest.length ? `<div class="more" title="${esc(rest.map(x => x.category + ": " + x.title).join("\n"))}">+ ${rest.length} more</div>` : "");
+  const left = pieces.filter(x => !shown.includes(x));
+  const extra = Math.min(Math.max((cardSize[sizeKey(id)] && cardSize[sizeKey(id)].h) || 0, autoLines[sizeKey(id)] || 0), left.length); // lines a taller card shows
+  const more = left.slice(0, extra), rest = left.slice(extra);
+  const gone = rest.some(x => x.missing);
+  return shown.concat(more).map(x => `<div class="row"><span class="k">${label[x.category] || x.category}</span><span class="v${x.missing ? " gone" : ""}" title="${esc(x.missing ? MISSING_MSG : x.title)}">${esc(x.title)}</span></div>`).join("")
+    + (rest.length ? `<button class="more${gone ? " gone" : ""}" data-details="${esc(id || "")}" data-show="${show}" title="${gone ? esc(MISSING_MSG) : "See everything in this fit"}">+ ${rest.length} more</button>` : "");
+}
+// What a card's pieces show follows its picture: on the board, only the board's pieces; otherwise what the
+// Show filter says (both, by default).
+function showFor(item, def) {
+  return def === "both" && item.picture && hasBoard(item) && boardMode.has(item.picture) ? "board" : def;
+}
+function infoRows(item, id, def = "both") {
+  const show = showFor(item, def);
+  return `<div class="rows" data-rid="${esc(id)}" data-def="${def}">${rows(piecesFor(item, show), id, show)}</div>`;
+}
+function itemById(id) {
+  const [kind, key] = id.split(":");
+  return kind === "slot" ? S.lineup.find(s => String(s.slot) === key) : S.fits.find(f => f.hash === key);
 }
 function matches(f) {
+  const fl = FILTERS.find(x => x[0] === catFilter);
+  if (fl && !fl[2](f)) return false;
   if (!search) return true;
   const q = search.toLowerCase();
-  return f.name.toLowerCase().includes(q) || f.pieces.some(p => p.title.toLowerCase().includes(q));
+  return f.name.toLowerCase().includes(q) || piecesFor(f, view === "catalogue" ? catShow : "both").some(p => p.title.toLowerCase().includes(q));
 }
 
 // ---- sidebar ----
@@ -286,21 +941,68 @@ function renderSide() {
   const nav = (id, name, meta, badge = "") => `<button class="nav${view === id ? " on" : ""}" data-view="${esc(id)}">
     <span class="name">${esc(name)}</span>${badge || "<span></span>"}<span class="meta">${meta}</span></button>`;
   const visible = S.fits.filter(f => !f.hidden).length;
-  $("#side").innerHTML = `
-    <div class="label">IN THE GAME</div>
+  const newCount = S.fits.filter(f => f.new).length;
+  $("#sideNav").innerHTML = `
+    <div class="label">IN THE GAME ${helpLink("game")}</div>
     ${nav("lineup", "In-Game Lineup", `${S.lineup.length} slots · ${inCat} in catalogue`)}
-    <div class="label">YOUR FITS</div>
-    ${nav("catalogue", "Fit Catalogue", `${visible} fit${visible === 1 ? "" : "s"}`, S.pending.length ? `<span class="badge blue">${S.pending.length} new</span>` : "")}
-    <div class="label">ROTATIONS</div>
+    <div class="label">YOUR FITS ${helpLink("fits")}</div>
+    ${nav("catalogue", "Fit Catalogue", `${visible} fit${visible === 1 ? "" : "s"}`, S.pending.length ? `<span class="badge blue">${S.pending.length} to place</span>` : (newCount ? `<span class="badge new">${newCount} new</span>` : ""))}
+    <div class="label">ROTATIONS ${helpLink("rotations")}</div>
     ${named.length ? named.map(r => nav(r.id, r.name, `${r.filled} of 10 slots · ${esc(when(r.updated))}`, r.matches_game ? `<span class="badge">In game</span>` : "")).join("")
       : `<div class="more" style="padding:4px 12px 8px">No rotations yet. Pick 10 fits from your catalogue, or save your In-Game Lineup.</div>`}
     <div class="side-actions">
       <button class="primary" id="newRotation">New rotation</button>
       <button id="importBtn">Import a .wardrobe</button>
     </div>
-    ${autos.length ? `<details class="autos"${autos.some(r => r.id === view) ? " open" : ""}><summary class="label">BEFORE-LOAD COPIES (${autos.length})</summary>
+    ${autos.length ? `<details class="autos"${autos.some(r => r.id === view) ? " open" : ""}><summary class="label">UNDO HISTORY (${autos.length})</summary>
       ${autos.map(r => nav(r.id, r.name, esc(when(r.updated)), r.matches_game ? `<span class="badge">In game</span>` : "")).join("")}</details>` : ""}`;
 }
+
+// ---- the (?) next to each sidebar heading: what that part of the app is for ----
+const HELP = {
+  game: {title: "In the game", body: `
+    <p>The <b>In-Game Lineup</b> shows the 10 preset slots in skate. as they are right now, read straight from the game.</p>
+    <ul>
+      <li>See what every slot is wearing, and which ones aren't saved in your catalogue yet.</li>
+      <li>Add a slot's outfit to your Fit Catalogue, or all of them at once.</li>
+      <li>Swap a different fit into a slot (right-click its picture).</li>
+      <li>Save the whole lineup as a rotation, to bring it back later.</li>
+    </ul>`},
+  fits: {title: "Your fits", body: `
+    <p>The <b>Fit Catalogue</b> is your saved collection of outfits. Each fit is a whole look, skater and board, with pictures you can spin.</p>
+    <ul>
+      <li>Fits come in when you press {SNAP} on the game's Skaters page{PAD}, or when you add slots from the In-Game Lineup.</li>
+      <li>Search, filter, favorite and rename them.</li>
+      <li>Click fits to pick them, then make a rotation from your picks.</li>
+    </ul>
+    <p>Your fits stay here no matter what's in the game, so nothing is lost when you change presets.</p>`},
+  rotations: {title: "Rotations", body: `
+    <p>A <b>rotation</b> is a set of fits laid out in the game's 10 preset slots. Loading it puts those fits into skate. in one go.</p>
+    <p>That's how you switch between whole setups: keep as many rotations as you like (an everyday set, a contest set, a set per season) and load the one you want when you want it.</p>
+    <ul>
+      <li>A rotation can hold one fit or all ten. Empty slots keep whatever the game already has.</li>
+      <li>Make one with <b>New rotation</b> (pick fits from your catalogue), or save your In-Game Lineup as one.</li>
+      <li>Just want one fit in one slot? Right-click a slot's picture and swap it instead.</li>
+      <li>Before each load, your lineup as it was goes into <b>Undo history</b> (bottom of the sidebar), so you can always put it back.</li>
+    </ul>`},
+};
+const helpLink = id => `<a href="#" class="helplink" data-help="${id}" title="What is this?" aria-label="What is this?">(?)</a>`;
+document.addEventListener("click", e => {
+  const a = e.target.closest && e.target.closest(".helplink");
+  if (!a) return;
+  e.preventDefault(); e.stopPropagation();
+  const h = HELP[a.dataset.help];
+  if (!h) return;
+  const scrim = document.createElement("div");
+  scrim.className = "scrim";
+  scrim.innerHTML = `<div class="dialog help" role="dialog" aria-modal="true"><h2>${esc(h.title)}</h2>${h.body.replaceAll("{SNAP}", snapKey()).replaceAll("{PAD}", snapPadNote())}<div class="buttons"><button class="primary" id="helpOk">Got it</button></div></div>`;
+  document.body.append(scrim);
+  const close = () => scrim.remove();
+  $("#helpOk", scrim).onclick = close;
+  scrim.onclick = ev => { if (ev.target === scrim) close(); };
+  scrim.addEventListener("keydown", ev => { if (ev.key === "Escape") close(); });
+  $("#helpOk", scrim).focus();
+}, true);
 
 // ---- snaps waiting for "which slot?" ----
 function renderPending() {
@@ -309,7 +1011,7 @@ function renderPending() {
   const name = n => { const s = S.lineup.find(x => x.slot === n); return s ? s.name : ""; };
   const others = p.candidates.filter(n => n !== p.guess);
   return `<div class="pending">
-    <img src="${esc(p.picture)}" alt="New snap">
+    <div style="width:150px">${pic({picture: p.picture, frames: p.frames}, "")}</div>
     <div>
       <h3>New snap${S.pending.length > 1 ? ` (1 of ${S.pending.length})` : ""}: which slot was it?</h3>
       <p>Preset Wardrobe couldn't tell for sure. Pick the slot you had selected in the game.</p>
@@ -329,13 +1031,18 @@ function renderLineup(notices) {
   } else if (!S.plugin_installed) {
     notices.push(`<div class="notice"><div class="grow"><strong>Want pictures?</strong> Install the Preset Wardrobe plugin: drag the zip onto the ReSkate Launcher's MODS page, then turn it on when the game asks.</div><button id="getPlugin">Get the plugin zip</button></div>`);
   } else {
-    notices.push(`<div class="notice"><div class="grow"><strong>Add a fit with a picture:</strong> in skate., open the <strong>Skaters</strong> page, select a preset and press <span class="kbd">F8</span>. It lands in your Fit Catalogue by itself.</div></div>`);
+    notices.push(`<div class="notice"><div class="grow"><strong>Add a fit with a picture:</strong> in skate., open the <strong>Skaters</strong> page, select a preset and press ${snapKey()}${snapPadNote()}.</div></div>`);
   }
-  return `<div class="head"><div><h1>In-Game Lineup</h1><div class="sub">The 10 presets in skate. right now.${missing ? ` ${missing} aren't in your catalogue yet.` : ""}</div></div>
+  return `<div class="head"><div><h1>In-Game Lineup</h1><div class="sub">The 10 presets in skate. right now. Right-click a slot's picture for more options.</div></div>
     <div class="actions"><button id="lineupRotation">Save lineup as rotation</button>${missing ? `<button class="primary" id="addAll">Add all to catalogue</button>` : ""}</div></div>`
-    + notices.join("") + `<div class="grid">${S.lineup.map(s => `<div class="card${s.selected ? " sel" : ""}">
-      ${pic(s, "Slot " + s.slot, (s.selected ? `<span class="badge blue">Selected</span>` : "") + (s.in_catalogue ? "" : `<span class="badge grey">Not in catalogue</span>`))}
-      <div class="info"><div class="title" title="${esc(s.name)}">${esc(s.name)}</div>${rows(s.pieces)}</div>
+    + notices.join("") + `<div class="grid">${S.lineup.map(s => `<div class="card${s.selected ? " sel" : ""}" data-slot="${s.slot}">
+      ${pic(s, "Slot " + s.slot, stackBadges([
+        [100, s.selected ? `<span class="badge blue">Selected</span>` : ""],
+        [95, s.live_changes ? `<span class="badge amber" title="${esc("Changed in the game since this preset was saved: " + s.live_changes.join("; "))}">Changed in game</span>` : ""],
+        [90, s.new ? `<span class="badge new">New</span>` : ""],
+        [80, s.requested ? `<span class="badge amber" title="Waiting for a new picture from the game">Picture asked</span>` : ""],
+        [70, s.in_catalogue ? "" : `<span class="badge grey">Not saved</span>`]]))}
+      <div class="info"><div class="title" title="${esc(s.name)}">${esc(s.name)}</div>${s.live_changes ? `<div class="livechg" title="Edited in the game and not saved there">${s.live_changes.map(esc).join("<br>")}</div>` : ""}${infoRows(s, "slot:" + s.slot)}</div>
       ${s.in_catalogue ? "" : `<div class="foot"><button class="small" data-add="${s.slot}">Add to catalogue</button></div>`}
     </div>`).join("")}</div>`;
 }
@@ -345,36 +1052,50 @@ function renderCatalogue(notices) {
   const shown = fits.filter(matches);
   let body;
   if (!fits.length) {
-    body = `<div class="blank">Your Fit Catalogue is empty.<br>Press <span class="kbd">F8</span> on the game's Skaters page, or add fits from your In-Game Lineup.</div>`;
+    body = `<div class="blank">Your Fit Catalogue is empty.<br>Press ${snapKey()} on the game's Skaters page${snapPadNote()}, or add fits from your In-Game Lineup.</div>`;
   } else if (!shown.length) {
-    body = `<div class="blank">No fits match “${esc(search)}”.</div>`;
+    body = `<div class="blank">${search ? `No fits match “${esc(search)}”.` : catFilter === "favorite" ? `No favorites yet.<br>Right-click a fit's picture and choose Add to favorites.` : "No fits match this filter."}</div>`;
   } else {
     body = `<div class="grid">${shown.map(f => {
       const n = picked.indexOf(f.hash);
-      const badges = (f.in_game ? `<span class="badge">In game</span>` : "") + (f.rotations.length ? `<span class="badge grey" title="${esc(f.rotations.join("\n"))}">${f.rotations.length} rotation${f.rotations.length > 1 ? "s" : ""}</span>` : "");
+      const badges = stackBadges([
+        [100, f.in_game ? `<span class="badge">In game</span>` : ""],
+        [90, f.new ? `<span class="badge new">New</span>` : ""],
+        [80, f.requested ? `<span class="badge amber" title="Waiting for a new picture from the game">Picture asked</span>` : ""],
+        [70, f.mixed ? `<span class="badge amber" title="Made with Mix &amp; match: the pictures are copied from the two fits. The skater picture still holds the original board. Load it in the game and press ${esc(snapKeyText())} for a real picture.">Mixed</span>` : ""],
+        [10, f.rotations.length ? `<span class="badge grey" title="${esc(f.rotations.join("\n"))}">${f.rotations.length} rotation${f.rotations.length > 1 ? "s" : ""}</span>` : ""]]);
       return `<div class="card pickable${n >= 0 ? " picked" : ""}" data-pick="${f.hash}">
-        ${pic(f, "", badges)}${n >= 0 ? `<span class="check">${n + 1}</span>` : ""}
-        <div class="info"><div class="title" title="${esc(f.name)}">${esc(f.name)}</div>${rows(f.pieces)}</div>
+        ${pic(f, "", badges, catShow === "both" ? "" : catShow)}${n >= 0 ? `<span class="check">${n + 1}</span>` : ""}
+        <div class="info"><div class="title" title="${esc(f.name)}">${esc(f.name)}</div>${infoRows(f, "fit:" + f.hash, catShow)}</div>
         <div class="foot"><button class="small ghost" data-rename="${f.hash}">Rename</button><button class="small ghost" data-delete="${f.hash}">Delete</button></div>
       </div>`; }).join("")}</div>`;
   }
-  return `<div class="head"><div><h1>Fit Catalogue</h1><div class="sub">${fits.length} saved fit${fits.length === 1 ? "" : "s"}. Click fits to pick up to 10 for a rotation.</div></div>
-    <div class="actions"><button id="exportCat" ${fits.length ? "" : "disabled"}>Export catalogue</button></div></div>`
+  return `<div class="head"><div><h1>Fit Catalogue</h1><div class="sub">${fits.length} saved fit${fits.length === 1 ? "" : "s"}. Click fits to pick up to 10 for a rotation. Right-click a picture to favorite it.</div></div>
+    <div class="actions"><button id="mixBtn" ${fits.filter(f => !f.hidden).length > 1 ? "" : "disabled"} title="Make a new fit from one fit's skater and another fit's board">Mix &amp; match</button><button id="exportCat" ${fits.length ? "" : "disabled"}>Export catalogue</button></div></div>`
     + notices.join("")
-    + (fits.length ? `<div class="toolbar"><input type="search" id="search" placeholder="Search fits by name or piece (e.g. Vans, hoodie)" value="${esc(search)}"></div>` : "")
+    + (fits.length ? `<div class="toolbar"><input type="search" id="search" placeholder="Search fits by name or piece (e.g. Vans, hoodie)" value="${esc(search)}">
+      ${(() => {
+        const fl = FILTERS.find(x => x[0] === catFilter);
+        const n = fl ? fits.filter(fl[2]).length : 0;
+        return `<button class="filterbtn${fl ? " on" : ""}${catFilter === "favorite" ? " fav" : ""}" id="filterBtn" aria-haspopup="menu" title="${fl ? "Filtering: " + fl[1] + ". Click to change the filter" : "Show only some of your fits"}">${catFilter === "favorite" ? favIcon() : filterIcon}<span>${fl ? esc(fl[1]) + " " + n : "Filter"}</span></button>`;
+      })()}
+      <div class="seg" role="group" aria-label="Show">${[["both", "Skater + Board"], ["skater", "Skater"], ["board", "Board"]].map(([k, t]) =>
+        `<button class="${catShow === k ? "on" : ""}" data-show-filter="${k}" aria-pressed="${catShow === k}">${t}</button>`).join("")}</div></div>` : "")
     + body
     + (picked.length ? `<div class="pickbar"><span><b>${picked.length}</b> of 10 picked</span><button class="primary" id="makeRotation">Make rotation</button><button class="ghost" id="clearPicks">Clear</button></div>` : "");
 }
 
 function renderRotation(r, notices) {
   const by = fitsBy();
-  if (S.game_running) notices.push(`<div class="notice warn"><div class="grow"><strong>Close skate. to load this rotation.</strong> The game rewrites your presets when it quits, so loading only works while it's closed.</div></div>`);
-  if (r.auto) notices.push(`<div class="notice"><div class="grow">This is an automatic copy of your In-Game Lineup from before a load, in case you want it back. Rename it to keep it for good.</div></div>`);
-  const canLoad = !S.game_running && r.filled > 0 && !r.matches_game;
-  const why = S.game_running ? "Close skate. first" : r.filled === 0 ? "Pick some fits first" : r.matches_game ? "Already in the game" : "Put these fits into the game's slots";
+  if (r.auto) notices.push(`<div class="notice"><div class="grow">From your <b>Undo history</b>: your In-Game Lineup as it was before a load. Load it to put those outfits back; nothing else changes. Rename it to keep it for good.</div></div>`);
+  const canLoad = r.filled > 0 && !r.matches_game;
+  const why = r.filled === 0 ? "Pick some fits first" : r.matches_game ? "Already in the game" : S.game_running ? "Change the outfits inside the running game" : "Put these fits into the game's slots";
   return `<div class="head"><div><h1>${esc(r.name)}</h1><div class="sub">${r.filled} of 10 slots filled${r.filled < 10 ? " · empty slots keep what's in the game" : ""}${r.matches_game ? " · this is what's in the game now" : ""}</div></div>
     <div class="actions">
-      <button class="primary" id="load" ${canLoad ? "" : "disabled"} title="${why}">Load into game</button>
+      <div class="loadbox">
+        <button class="primary" id="load" ${canLoad ? "" : "disabled"} title="${why}">Load into game</button>
+        ${loadNote && loadNote.id === r.id ? `<div class="loadnote">${esc(loadNote.text)}</div>` : ""}
+      </div>
       <button id="rename">Rename</button>
       <button id="export" ${r.filled ? "" : "disabled"}>Export</button>
       <button class="danger" id="delete">Delete</button>
@@ -383,7 +1104,7 @@ function renderRotation(r, notices) {
       if (!f) return `<button class="slot-empty" data-slotpick="${i}"><b>+</b>Slot ${i + 1}<br><span class="more">Pick a fit</span></button>`;
       return `<div class="card">
         ${pic(f, "Slot " + (i + 1))}
-        <div class="info"><div class="title" title="${esc(f.name)}">${esc(f.name)}</div>${rows(f.pieces)}</div>
+        <div class="info"><div class="title" title="${esc(f.name)}">${esc(f.name)}</div>${infoRows(f, "fit:" + f.hash)}</div>
         <div class="foot">
           <button class="small" data-slotpick="${i}">Change</button>
           <button class="small ghost" data-move="${i},-1" ${i === 0 ? "disabled" : ""} title="Move left">◀</button>
@@ -392,12 +1113,84 @@ function renderRotation(r, notices) {
         </div></div>`; }).join("")}</div>`;
 }
 
+// The sidebar: drag its edge to make it narrower (never wider than it starts); all the way left hides it.
+(function () {
+  const layout = $("#layout"), grip = $("#sideGrip"), MIN = 180, HIDE = 110;
+  let w = null, collapsed = false;
+  try { const t = JSON.parse(localStorage.getItem("pw-side") || "null"); if (t) { w = t.w; collapsed = !!t.c; } } catch (e) {}
+  const max = () => parseFloat(getComputedStyle(layout).getPropertyValue("--side-max")) || 270;
+  const apply = () => {
+    layout.classList.toggle("collapsed", collapsed);
+    if (collapsed) layout.style.setProperty("--side", "0px");
+    else if (w) layout.style.setProperty("--side", w + "px"); else layout.style.removeProperty("--side");
+    try { localStorage.setItem("pw-side", JSON.stringify({w, c: collapsed})); } catch (e) {}
+  };
+  apply();
+  grip.addEventListener("pointerdown", e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    grip.setPointerCapture(e.pointerId);
+    grip.classList.add("drag"); document.body.classList.add("sidedrag");
+    const left = layout.getBoundingClientRect().left;
+    let cur = collapsed ? 0 : Math.min(w || max(), max());
+    const move = ev => {
+      cur = Math.max(0, Math.min(max(), ev.clientX - left));
+      // under the hide point it already looks hidden (no strip of sidebar left over)
+      layout.classList.toggle("collapsed", cur < HIDE);
+      layout.style.setProperty("--side", (cur < HIDE ? 0 : cur) + "px");
+    };
+    const up = () => {
+      grip.removeEventListener("pointermove", move); grip.removeEventListener("pointerup", up); grip.removeEventListener("pointercancel", up);
+      grip.classList.remove("drag"); document.body.classList.remove("sidedrag");
+      if (cur < HIDE) { collapsed = true; } else { collapsed = false; w = Math.max(MIN, Math.min(max(), cur)); if (w >= max() - 1) w = null; }
+      apply();
+    };
+    grip.addEventListener("pointermove", move); grip.addEventListener("pointerup", up); grip.addEventListener("pointercancel", up);
+  });
+  $("#sideOpen").onclick = () => { collapsed = false; apply(); };
+})();
+let shownView = null;
+// The header's update button: only there when GitHub has a newer release.
+function showUpdate() {
+  const b = $("#updBtn"), u = S && S.update;
+  if (!u || !u.available) { b.hidden = true; return; }
+  b.hidden = false;
+  b.classList.toggle("failed", u.state === "failed");
+  b.disabled = u.state === "downloading" || u.state === "installing";
+  b.textContent = u.state === "downloading" ? `Downloading update… ${Math.round((u.progress || 0) * 100)}%`
+    : u.state === "installing" ? "Restarting…"
+    : u.state === "failed" ? "Update failed: try again"
+    : `Update available · v${u.version}`;
+  b.title = u.state === "failed" ? (u.error || "") : "Download and install the new version. The app restarts.";
+}
+$("#updBtn").onclick = async () => {
+  const u = S && S.update;
+  if (!u || !u.available) return;
+  const notes = u.notes ? `<div class="notes">${esc(u.notes)}</div>` : "";
+  const ok = await dialog({title: `Update to v${esc(u.version)}?`,
+    text: `You have ${esc(S.version)}. Preset Wardrobe downloads the new version, checks it, and restarts. Your fits, rotations and settings stay as they are.${u.page ? ` <a href="#" id="relPage">What's new</a>` : ""}</p>${notes}<p style="display:none">`,
+    okText: "Update and restart"});
+  if (ok) act(() => api("/api/update/install", {}));
+};
+document.addEventListener("click", e => {
+  if (e.target && e.target.id === "relPage") { e.preventDefault(); api("/api/open", {what: "release"}).catch(() => {}); }
+});
+
 function render() {
+  if (S) showUpdate();
   if (!S || document.querySelector(".scrim")) return;
+  if (!sizesLoaded) { sizesLoaded = true; cardSize = S.card_sizes || {}; }
   const st = $("#status");
   st.className = "status " + (S.game_running ? "running" : "closed");
+  $("#pluginStatus").className = "status " + (S.plugin_installed ? "running" : "closed");
+  $("#pluginText").textContent = S.plugin_installed ? "Plugin installed" : "Plugin not installed";
   $("#statusText").textContent = S.game_running ? "skate. is running" : "skate. is closed";
   if (!["lineup", "catalogue"].includes(view) && !S.rotations.some(r => r.id === view)) view = "lineup";
+  if (view !== shownView) { // leaving a screen: unlocked zoom, turn and board/outfit go back to the default
+    shownView = view;
+    zooms.clear(); holds.clear(); boardMode.clear(); applied.clear();
+  }
+  syncViews();
   renderSide();
   const notices = [];
   if (S.profile_error) notices.push(`<div class="notice bad"><div class="grow">${esc(S.profile_error)}</div></div>`);
@@ -410,15 +1203,61 @@ function render() {
   $("#main").innerHTML = pending + html;
   if (focused) { const s = $("#search"); s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
   wire();
+  applyWidths();
 }
 
 // ---- the fit picker for a rotation slot ----
-function pickFit(slot) {
+// A change made inside the running game: a progress box while the app works, the face-and-body choice remembered.
+async function liveCall(url, payload, onDone) {
+  const box = document.createElement("div");
+  box.className = "progress";
+  box.innerHTML = `<b>Loading into the running game…</b><div class="sub2"><span class="secs">0</span> s</div><div class="bar"></div>`;
+  document.body.append(box);
+  addLog("info", "Loading into the running game. Stay on this screen until it finishes.");
+  const t0 = Date.now(), timer = setInterval(() => { box.querySelector(".secs").textContent = Math.round((Date.now() - t0) / 1000); }, 500);
+  try {
+    const body = true; // the whole fit: clothes, board, face and body
+    const res = await api(url, {...payload, live: true, body});
+    const secs = ((Date.now() - t0) / 1000).toFixed(1);
+    if (res && res.log) res.log.push({level: "info", text: `Finished in ${secs} s.`});
+    if (onDone) onDone(res);
+    setTimeout(afterLiveLoad, 50);
+    return res;
+  }
+  finally { clearInterval(timer); box.remove(); }
+}
+
+// After a load into the running game: back to skate. (its window to the front, this one minimized), or stay.
+// Asked each time unless a choice was remembered; Settings changes it.
+function afterLiveLoad() {
+  const pref = (S && S.after_load) || "ask";
+  if (pref === "stay") return;
+  const goBack = () => api("/api/focus-game", {}).catch(e => toast(e.message, true));
+  if (pref === "game") { goBack(); return; }
+  document.querySelectorAll(".backprompt").forEach(b => b.remove());
+  const box = document.createElement("div");
+  box.className = "backprompt";
+  box.innerHTML = `<div class="bp-text">Loaded. Go back to skate.?</div>
+    <div class="bp-buttons"><button class="primary" id="bpGo">Go back to the game</button><button id="bpStay">Stay here</button></div>
+    <label class="opt"><input type="checkbox" id="bpRemember"> Remember my choice</label>`;
+  document.body.append(box);
+  const done = async choice => {
+    box.remove();
+    if ($("#bpRemember", box).checked) {
+      try { await api("/api/settings", {after_load: choice}); S.after_load = choice; toast(choice === "game" ? "OK: after a load, the app takes you back to skate. (change it in Settings)" : "OK: after a load, the app stays open (change it in Settings)"); } catch (e) {}
+    }
+    if (choice === "game") goBack();
+  };
+  $("#bpGo", box).onclick = () => done("game");
+  $("#bpStay", box).onclick = () => done("stay");
+}
+
+function pickFit(slot, title) {
   return new Promise(resolve => {
     const fits = S.fits.filter(f => !f.hidden);
     const scrim = document.createElement("div");
     scrim.className = "scrim";
-    scrim.innerHTML = `<div class="dialog wide"><h2>Pick a fit for slot ${slot + 1}</h2>
+    scrim.innerHTML = `<div class="dialog wide"><h2>${esc(title || `Pick a fit for slot ${slot + 1}`)}</h2>
       <input type="search" id="pickSearch" placeholder="Search fits">
       <div class="grid" id="pickGrid"></div>
       <div class="buttons"><button id="pickCancel">Cancel</button></div></div>`;
@@ -443,7 +1282,10 @@ function pickFit(slot) {
 function wire() {
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
   const all = (attr, fn) => document.querySelectorAll(`[${attr}]`).forEach(el => el.onclick = e => { e.stopPropagation(); fn(el.getAttribute(attr), el); });
-  all("data-view", v => { view = v; render(); });
+  all("data-view", v => {
+    if (view === "catalogue" && v !== "catalogue" && S.fits.some(f => f.new)) api("/api/seen", {}).catch(() => {});
+    view = v; loadNote = null; render();
+  });
   all("data-resolve", n => act(() => api("/api/pending/resolve", {id: S.pending[0].id, slot: +n})));
   on("newRotation", async () => {
     const name = await dialog({title: "New rotation", text: "Name it, then pick a fit for each slot.", input: S.default_rotation_name, okText: "Create"});
@@ -468,8 +1310,14 @@ function wire() {
   });
 
   // catalogue
+  on("filterBtn", openFilterMenu);
   const s = $("#search");
   if (s) s.oninput = e => { search = e.target.value; render(); };
+  document.querySelectorAll("[data-show-filter]").forEach(b => b.onclick = () => {
+    catShow = b.dataset.showFilter;
+    try { localStorage.setItem("catShow", catShow); } catch (e) {}
+    render();
+  });
   document.querySelectorAll("[data-pick]").forEach(el => el.onclick = () => {
     const h = el.dataset.pick, i = picked.indexOf(h);
     if (i >= 0) picked.splice(i, 1);
@@ -494,6 +1342,7 @@ function wire() {
     if (name === null) return;
     act(async () => { const r = await api("/api/rotation/create", {name, slots: picked}); picked = []; view = r.id; return r; });
   });
+  on("mixBtn", () => openMix());
   on("exportCat", () => { location.href = "/api/export"; toast("Exporting your Fit Catalogue as a .wardrobe file."); });
 
   // rotation
@@ -510,9 +1359,19 @@ function wire() {
     const [i, d] = v.split(",").map(Number), j = i + d, slots = [...r.slots];
     [slots[i], slots[j]] = [slots[j], slots[i]]; save(slots);
   });
+  // One button. The game running: the change is applied live and written to the game's file when it closes.
+  // The game closed: the file is written straight away.
   on("load", async () => {
-    const ok = await dialog({title: `Load ${r.name}?`, text: `${r.filled} of your game's slots get this rotation's fits.${r.filled < 10 ? " The empty slots keep what's in the game." : ""} Your In-Game Lineup is kept as a before-load copy, and the whole profile is backed up first.`, okText: "Load into game"});
-    if (ok) act(() => api("/api/rotation/load", {id: r.id}));
+    if (!S.game_running) {
+      const ok = await dialog({title: `Load ${r.name}?`, text: `${r.filled} of your game's slots get this rotation's fits.${r.filled < 10 ? " The empty slots keep what's in the game." : ""} Your current lineup is saved in Undo history first, so you can put it back.`, okText: "Load into game"});
+      if (ok) act(async () => {
+        const res = await api("/api/rotation/load", {id: r.id});
+        loadNote = {id: r.id, text: "Saved. It will be there next time you start the game."};
+        return res;
+      });
+      return;
+    }
+    act(() => liveCall("/api/rotation/load", {id: r.id}, () => { loadNote = {id: r.id, text: "Applied now. It's saved when you close the game."}; }));
   });
   on("rename", async () => {
     const name = await dialog({title: "Rename rotation", input: r.name, okText: "Rename"});
@@ -525,25 +1384,912 @@ function wire() {
   });
 }
 
+// Turning a preview: press on the picture and drag sideways. Just pointing at it does nothing, and a
+// click without a drag still picks the card. ⤢ opens the big viewer; the board button flips between
+// the outfit's turn and the board's 4 views.
+const preloaded = new Set();
+let spinBusy = false; // dragging: the page isn't redrawn under the player's hand
+function preload(frames) {
+  const key = frames.map(showPic).join("|");
+  if (preloaded.has(key)) return;
+  preloaded.add(key);
+  frames.forEach(src => { const u = showPic(src); if (bigPic(u)) warmPic(u); else { const i = new Image(); i.src = u; } });
+}
+function showFrame(box, n) {
+  const frames = JSON.parse(box.dataset.frames);
+  const k = ((n % frames.length) + frames.length) % frames.length;
+  box._n = k;
+  const img = box.querySelector("img:not(.zoomto)");
+  if (!img) return;
+  const u = showPic(frames[k]);
+  if (picReady(u)) img.setAttribute("src", u);
+  else { warmPic(u); } // not decoded yet: the frame on screen stays a moment longer
+}
+// How far to drag for one frame: a whole turn over about a card and a half; a board view per third.
+function dragStep(box, count, board) {
+  const w = box.getBoundingClientRect().width || 200;
+  return board ? w / 3 : Math.max(2, w * 1.5 / count);
+}
+function startDrag(e, el, getFrames, getN, setN, board, onEnd, pan) {
+  if (e.button !== 0) return;
+  const frames = getFrames();
+  preload(frames);
+  const x0 = e.clientX, y0 = e.clientY, n0 = getN();
+  let moved = false, dx = 0, dy = 0, lastDy = 0;
+  // The cursor is held on the picture while you turn it (and hidden), so the drag can't wander off
+  // across the screen; where that isn't allowed, the drag is followed as it goes.
+  let locked = false;
+  try { const r = el.requestPointerLock && el.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (_) {}
+  if (!el.requestPointerLock) el.setPointerCapture && el.setPointerCapture(e.pointerId);
+  spinBusy = true;
+  const move = ev => {
+    locked = document.pointerLockElement === el;
+    if (locked) {
+      const m = ev.movementX || 0;
+      if (Math.abs(m) < 150) dx += m; // the browser can report one wild jump as the cursor is locked
+      const my = ev.movementY || 0;
+      if (Math.abs(my) < 150) dy += my; // the same jump guard as sideways
+    } else { dx = ev.clientX - x0; dy = ev.clientY - y0; }
+    const panning = pan && pan.can();
+    if (!moved && Math.abs(dx) < 4 && !(panning && Math.abs(dy) >= 4)) return;
+    if (!moved) { moved = true; el.classList.add("turning"); }
+    if (panning) { pan.by(dy - lastDy); lastDy = dy; }
+    // dragging right turns the skater to the right
+    setN(n0 + Math.round(dx / dragStep(el, frames.length, board())));
+  };
+  const up = () => {
+    document.removeEventListener("pointermove", move);
+    document.removeEventListener("pointerup", up);
+    document.removeEventListener("pointercancel", up);
+    if (document.pointerLockElement === el) document.exitPointerLock();
+    el.classList.remove("turning");
+    spinBusy = false;
+    if (moved) { // the click that follows a drag doesn't pick the card
+      const eat = ev => { ev.stopPropagation(); ev.preventDefault(); };
+      window.addEventListener("click", eat, {capture: true, once: true});
+      setTimeout(() => window.removeEventListener("click", eat, {capture: true}), 50);
+    }
+    if (onEnd) onEnd(moved);
+  };
+  document.addEventListener("pointermove", move);
+  document.addEventListener("pointerup", up);
+  document.addEventListener("pointercancel", up);
+}
+// Held: after a click on the picture, it stays where you turn it, and ↺ (where the hint was) puts it
+// back. Otherwise it goes back to the front when you let go.
+function setHeld(box, n) {
+  if (n === null) { holds.delete(box.dataset.main); delete box.dataset.held; }
+  else { holds.set(box.dataset.main, n); box.dataset.held = n; }
+  pvTouch(box);
+  const btns = box.querySelector(".picbtns"), hint = box.querySelector(".hint");
+  let reset = box.querySelector(".picreset");
+  if (n !== null && !reset) {
+    if (hint) hint.remove();
+    btns.insertAdjacentHTML("afterbegin", `<button class="picreset" title="Back to the front" aria-label="Back to the front">↺</button>`);
+  }
+  if (n === null && reset) {
+    reset.remove();
+    if (!hint) box.insertAdjacentHTML("beforeend", `<span class="hint">↔ drag to turn</span>`);
+  }
+}
+document.addEventListener("pointerdown", e => {
+  if (!e.target.closest || e.target.closest(".picbtns") || e.target.closest(".zoombar") || e.target.closest(".savepv") || e.target.closest(".badges") || e.target.closest(".favmark")) return;
+  const box = e.target.closest(".pic[data-frames]");
+  if (!box) return;
+  e.preventDefault(); // no dragging the image itself
+  const startN = box.dataset.held !== undefined ? box._n || 0 : 0;
+  startDrag(e, box, () => JSON.parse(box.dataset.frames), () => startN,
+    n => { showFrame(box, n); if (box._n !== startN) box.classList.add("spun"); }, () => box.dataset.mode === "board",
+    moved => {
+      if (!moved) {
+        // A click right after turning it ("click to lock" showing) locks the spin; any other click
+        // is an ordinary click on the card (which picks it in the Fit Catalogue).
+        if (box.classList.contains("spun") && box.dataset.held === undefined) {
+          setHeld(box, box._n || 0);
+          box._lockClick = true;
+        }
+        return;
+      }
+      if (box.dataset.held !== undefined) { setHeld(box, box._n || 0); return; } // held: stays put
+      box._n = 0; // let go: back to the front
+      const img = box.querySelector("img");
+      if (img) img.setAttribute("src", showPic(JSON.parse(box.dataset.frames)[0]));
+    }, zpan(box));
+});
+// The zoom slider (a card's, or the large viewer's); double-click puts it back to 1.
+document.addEventListener("input", e => {
+  const r = e.target;
+  if (!r.classList || !r.classList.contains("zoomer")) return;
+  const el = r.closest("[data-zkey]");
+  if (!el) return;
+  const k = el.dataset.zkey;
+  zoomAt(el, Number(r.value));
+});
+document.addEventListener("dblclick", e => {
+  const bar = e.target.closest && e.target.closest(".zoombar");
+  const el = bar && bar.closest("[data-zkey]");
+  if (!el) return;
+  zooms.delete(el.dataset.zkey);
+  zapply(el);
+  pvTouch(el);
+});
+// "Lock preview?": ticked, the picture's look as it is now is kept for the fit, and kept up to date.
+document.addEventListener("change", e => {
+  const box = e.target;
+  if (!box.classList || !box.classList.contains("savepv-in")) return;
+  const el = box.closest("[data-zkey]");
+  const hash = el && el.dataset.hash;
+  if (!hash) return;
+  const label = box.closest(".savepv");
+  label.classList.toggle("on", box.checked);
+  label.title = box.checked ? "Preview locked: untick to unlock it" : "Lock preview?";
+  label.querySelector(".tip").textContent = box.checked ? "Preview locked" : "Lock preview?";
+  clearTimeout(pvTimers.get(hash));
+  pvTimers.delete(hash);
+  pvSave(hash, box.checked ? pvCapture(el) : null, el.dataset.main);
+});
+// ---- favorites ----
+// "Add to favorites" in a picture's right-click menu (the same one takes it back). The little star on the card is a button too.
+// The animation lives in its own layer on the page, so a redraw of the cards underneath can't cut it short.
+const reduceMotion = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+function favBurst(rect, on) {
+  const layer = document.createElement("div");
+  layer.className = "favfx";
+  layer.style.left = rect.left + rect.width / 2 + "px";
+  layer.style.top = rect.top + rect.height / 2 + "px";
+  const size = Math.max(54, Math.min(130, Math.min(rect.width, rect.height) * 0.46));
+  const add = (cls, sz, html) => {
+    const el = document.createElement("div");
+    el.className = cls;
+    el.style.width = el.style.height = sz + "px";
+    if (html) el.innerHTML = html;
+    layer.append(el);
+    return el;
+  };
+  const ctr = "translate(-50%, -50%)";
+  document.body.append(layer);
+  const done = ms => setTimeout(() => layer.remove(), ms);
+  if (reduceMotion()) {
+    const big = add("big", size, favIcon());
+    big.animate([{transform: ctr, opacity: on ? 1 : .6}, {transform: ctr, opacity: 0}], {duration: 700, easing: "ease-out", fill: "forwards"});
+    return done(760);
+  }
+  if (!on) { // taking it back: the mark shrinks away, no fanfare
+    const big = add("big", size, favIcon());
+    big.style.opacity = .85;
+    big.animate([{transform: ctr + " scale(1)", opacity: .85}, {transform: ctr + " scale(.55) rotate(-10deg)", opacity: 0}],
+      {duration: 380, easing: "cubic-bezier(.4,0,.8,.6)", fill: "forwards"});
+    return done(440);
+  }
+  // the ring that spreads from the middle
+  add("ring", size * 0.8).animate([
+    {transform: ctr + " scale(.3)", opacity: .75}, {transform: ctr + " scale(2.1)", opacity: 0}],
+    {duration: 650, delay: 60, easing: "cubic-bezier(.2,.7,.3,1)", fill: "both"});
+  // the mark itself: pops in past its size, settles, holds a moment, then floats up and fades
+  const big = add("big", size, favIcon());
+  const rot = -24;
+  big.animate([
+    {transform: `${ctr} scale(0) rotate(${rot}deg)`, opacity: 0, offset: 0},
+    {transform: `${ctr} scale(1.32) rotate(${-rot / 3}deg)`, opacity: 1, offset: .26},
+    {transform: `${ctr} scale(.92) rotate(0deg)`, opacity: 1, offset: .42},
+    {transform: `${ctr} scale(1.04) rotate(0deg)`, opacity: 1, offset: .56},
+    {transform: `${ctr} scale(1) rotate(0deg)`, opacity: 1, offset: .76},
+    {transform: `translate(-50%, -105%) scale(.9) rotate(0deg)`, opacity: 0, offset: 1}],
+    {duration: 1100, easing: "ease-out", fill: "both"});
+  // little ones burst outwards, each its own way
+  const n = 10;
+  for (let k = 0; k < n; k++) {
+    const ang = (k / n) * Math.PI * 2 + (Math.random() - .5) * .5;
+    const dist = size * (.7 + Math.random() * .55);
+    const sz = 9 + Math.random() * 11;
+    const bit = add("bit", sz, favIcon());
+    const spin = (Math.random() - .5) * 120;
+    bit.animate([
+      {transform: `${ctr} translate(0,0) scale(.2) rotate(0deg)`, opacity: 0, offset: 0},
+      {transform: `${ctr} translate(${Math.cos(ang) * dist * .55}px, ${Math.sin(ang) * dist * .55}px) scale(1) rotate(${spin / 2}deg)`, opacity: 1, offset: .35},
+      {transform: `${ctr} translate(${Math.cos(ang) * dist}px, ${Math.sin(ang) * dist + 14}px) scale(.35) rotate(${spin}deg)`, opacity: 0, offset: 1}],
+      {duration: 750 + Math.random() * 250, delay: 90 + Math.random() * 70, easing: "cubic-bezier(.15,.7,.3,1)", fill: "both"});
+  }
+  done(1300);
+}
+function toggleFav(hash, rect) {
+  const f = S.fits.find(x => x.hash === hash);
+  if (!f || f.hidden) { toast("Add this fit to your Fit Catalogue first, then you can favorite it.", true); return; }
+  const on = !f.favorite;
+  const set = v => { f.favorite = v; S.lineup.forEach(s => { if (s.hash === hash && s.in_catalogue) s.favorite = v; }); };
+  set(on);
+  favBurst(rect, on);
+  render();
+  if (on) requestAnimationFrame(() => document.querySelectorAll(`.favmark[data-fav="${CSS.escape(hash)}"]`).forEach(m => {
+    if (!reduceMotion()) m.animate([{transform: "scale(0)", opacity: 0}, {transform: "scale(1.45)", opacity: 1, offset: .6}, {transform: "scale(1)", opacity: 1}],
+      {duration: 420, delay: 480, easing: "ease-out", fill: "backwards"});
+  }));
+  api("/api/fit/favorite", {hash, favorite: on}).catch(e => { set(!on); render(); toast(e.message, true); });
+}
+document.addEventListener("click", e => {
+  const m = e.target.closest && e.target.closest(".favmark");
+  if (!m) return;
+  e.stopPropagation();
+  toggleFav(m.dataset.fav, m.closest(".pic").getBoundingClientRect());
+}, true);
+// A click on the labels opens or closes the full list; it never picks the card.
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest(".pic .badges");
+  document.querySelectorAll(".pic .badges.open").forEach(x => { if (x !== b) x.classList.remove("open"); });
+  if (!b) return;
+  e.stopPropagation();
+  if (b.classList.contains("stack")) b.classList.toggle("open");
+}, true);
+// Clicks on the slider never reach the card (which would pick the fit).
+document.addEventListener("click", e => {
+  if (e.target.closest && (e.target.closest(".zoombar") || e.target.closest(".savepv"))) e.stopPropagation();
+}, true);
+
+// Ctrl + wheel (and a trackpad pinch) zooms towards the pointer, on a card or in the large viewer.
+// The plain wheel is left alone, so the page (or the viewer) scrolls as usual.
+function wheelZoom(el, e) {
+  const v = zget(el.dataset.zkey);
+  const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+  const {cx, cy} = zrel(el, e);
+  zoomAt(el, v.z * Math.exp(-clamp(dy, -200, 200) * 0.004), cx, cy);
+}
+document.addEventListener("wheel", e => {
+  if (!e.ctrlKey || !e.target.closest) return;
+  const el = e.target.closest(".pic[data-frames], .viewer .stage");
+  if (!el || !el.dataset.zkey) return;
+  e.preventDefault();
+  wheelZoom(el, e);
+}, {passive: false});
+// Off the picture, the "click to lock" hint waits for the next real turn.
+document.addEventListener("pointerout", e => {
+  const box = e.target.closest && e.target.closest(".pic[data-frames]");
+  if (box && !box.contains(e.relatedTarget) && !box.classList.contains("turning")) box.classList.remove("spun");
+});
+// The click that locked a spin doesn't also pick the card.
+document.addEventListener("click", e => {
+  if (!e.target.closest) return;
+  const box = e.target.closest(".pic[data-frames]");
+  if (box && box._lockClick && !e.target.closest(".picbtns")) {
+    box._lockClick = false;
+    e.stopPropagation();
+  }
+}, true);
+// Clicks on the icons never reach the card (which would pick the fit).
+document.addEventListener("click", e => {
+  const btns = e.target.closest && e.target.closest(".picbtns");
+  if (!btns) return;
+  e.stopPropagation();
+  const box = btns.closest(".pic[data-frames]");
+  const btn = e.target.closest("button");
+  if (!box || !btn) return;
+  if (btn.classList.contains("picreset")) {
+    setHeld(box, null);
+    box._n = 0;
+    const img = box.querySelector("img");
+    if (img) img.setAttribute("src", showPic(JSON.parse(box.dataset.frames)[0]));
+  }
+  if (btn.classList.contains("picboard")) zoomTo(box, box.dataset.mode === "board" ? 0 : 1);
+  if (btn.classList.contains("picbig")) openViewer(JSON.parse(box.dataset.outfit), box.dataset.title || "",
+    box.dataset.board ? JSON.parse(box.dataset.board) : null, box.dataset.mode === "board", !!box.dataset.boardonly, box.dataset.main, box.dataset.hash || "");
+}, true);
+
+// Zooming between the outfit and the board, when the board button is pressed: the outfit grows a
+// little and fades as the board's own picture grows into place, and back. (Scrolling just scrolls.)
+// p runs from 0 (the outfit) to 1 (the board): the outfit grows a little and fades as the board view
+// grows into place over it.
+const ease = t => t * t * (3 - 2 * t);
+function drawZoom(box) {
+  const p = box._p || 0;
+  const main = box.querySelector("img:not(.zoomto)");
+  let over = box.querySelector("img.zoomto");
+  const mix = ease(Math.min(1, Math.max(0, (p - 0.3) / 0.45)));
+  const between = p > 0.001 && p < 0.999;
+  if (between && !over) {
+    over = document.createElement("img");
+    over.className = "zoomto";
+    over.alt = "";
+    main.after(over);
+  }
+  const onBoard = box.dataset.mode === "board";
+  // main shows the side the box is on; the other side is drawn over it
+  const outfitImg = onBoard ? over : main, boardImg = onBoard ? main : over;
+  if (over) {
+    const other = showPic(JSON.parse(onBoard ? box.dataset.outfit : box.dataset.board)[0]);
+    if (over.getAttribute("src") !== other) over.setAttribute("src", other);
+  }
+  // (the zoom the picture has rides along, from the CSS variables)
+  const pan = "translate(calc(var(--px, 0) * (var(--z, 1) - 1) * 50%), calc(var(--pf, 0) * (var(--z, 1) - 1) * 50%))";
+  if (outfitImg) { outfitImg.style.transform = `${pan} scale(calc(var(--z, 1) * ${1 + 0.12 * ease(p)}))`; outfitImg.style.opacity = 1 - mix; }
+  if (boardImg) { boardImg.style.transform = `${pan} scale(calc(var(--z, 1) * ${0.92 + 0.08 * ease(p)}))`; boardImg.style.opacity = mix; }
+  if (!between) {
+    if (over) over.remove();
+    main.style.transform = ""; main.style.opacity = "";
+    if ((p >= 0.999) !== onBoard) switchMode(box, p >= 0.999);
+  }
+}
+// One transition at a time, over a fixed time; asking again while it runs does nothing.
+const ZOOM_MS = 380;
+function zoomTo(box, target) {
+  if (!box.dataset.board || box._anim) return;
+  const from = box.dataset.mode === "board" ? 1 : 0;
+  if (from === target) return;
+  spinBusy = true;
+  const t0 = performance.now();
+  const step = now => {
+    const t = Math.min(1, (now - t0) / ZOOM_MS);
+    box._p = from + (target - from) * t;
+    drawZoom(box);
+    if (t < 1) { box._anim = requestAnimationFrame(step); return; }
+    box._p = target;
+    drawZoom(box);
+    box._anim = null;
+    box._needPause = true; // a scroll still going from before doesn't turn it straight back
+    spinBusy = false;
+  };
+  box._anim = requestAnimationFrame(step);
+}
+
+
+// Outfit or board on a card.
+function switchMode(box, board) {
+  const set = JSON.parse(board ? box.dataset.board : box.dataset.outfit);
+  box.dataset.frames = JSON.stringify(set);
+  if (board) { box.dataset.mode = "board"; boardMode.add(box.dataset.main); }
+  else { delete box.dataset.mode; boardMode.delete(box.dataset.main); }
+  box.dataset.zkey = box.dataset.main;
+  zapply(box);
+  pvTouch(box);
+  const mode = box.querySelector(".picboard");
+  mode.classList.toggle("on", board);
+  mode.title = board ? "Show the outfit" : "Show the board";
+  box._n = 0;
+  box._p = board ? 1 : 0;
+  if (box.dataset.held !== undefined) setHeld(box, null);
+  preload(set);
+  const img = box.querySelector("img:not(.zoomto)");
+  if (img) img.setAttribute("src", showPic(set[0]));
+  // the pieces under the picture follow it
+  const holder = box.closest(".card") && box.closest(".card").querySelector(".info .rows");
+  const item = holder && S && itemById(holder.dataset.rid);
+  if (item) {
+    const show = board ? "board" : holder.dataset.def;
+    holder.innerHTML = rows(piecesFor(item, show), holder.dataset.rid, show);
+  }
+}
+
+// Everything a fit holds, from "+ N more" on its card: the outfit and the board piece by piece, with
+// each piece's game name, and the mod it's from when it's from one.
+function openDetails(id, show = "both") {
+  const [kind, key] = id.split(":");
+  const item = kind === "slot" ? S.lineup.find(s => String(s.slot) === key) : S.fits.find(f => f.hash === key);
+  if (!item) return;
+  const facts = [];
+  if (kind === "slot") {
+    facts.push(`In-game slot ${item.slot}${item.selected ? " (selected)" : ""}`);
+    facts.push(item.in_catalogue ? "In your Fit Catalogue" : "Not in your Fit Catalogue yet");
+  } else {
+    if (item.added) facts.push("Added " + new Date(item.added).toLocaleString());
+    if (item.in_game) facts.push("In the game now");
+    if (item.rotations && item.rotations.length) facts.push("In " + item.rotations.join(", "));
+  }
+  const mods = new Set(item.pieces.filter(p => p.mod).map(p => p.mod));
+  if (mods.size) facts.push(`${item.pieces.filter(p => p.mod).length} from mods: ${[...mods].join(", ")}`);
+  const list = pieces => pieces.map(p => `<div class="item"><span class="cat">${esc(p.category)}</span>
+      <span class="name${p.missing ? " gone" : ""}">${esc(p.title)}</span>${p.missing ? `<span class="why">${esc(MISSING_MSG)}</span>` : ""}${p.missing && kind === "fit" ? `<button class="rmItem" data-key="${esc(p.key)}" title="This item isn't installed. Remove it from this fit?">Remove from this fit</button>` : ""}<span class="key">${esc(p.key)}</span>${p.mod ? `<span class="mod">From the mod ${esc(p.mod)}</span>` : ""}</div>`).join("");
+  const skater = show === "board" ? [] : item.pieces.filter(p => !p.board), board = show === "skater" ? [] : item.pieces.filter(p => p.board);
+  const scrim = document.createElement("div");
+  scrim.className = "scrim";
+  scrim.innerHTML = `<div class="dialog details" role="dialog" aria-modal="true">
+    <div><h2>More info</h2><div class="sub">${esc(item.name || "Fit")}</div></div>
+    <div class="facts">${facts.map(f => `<span>${esc(f)}</span>`).join("")}</div>
+    <div class="list">
+      ${skater.length ? `<h3>Outfit</h3>${list(skater)}` : ""}
+      ${board.length ? `<h3>Board</h3>${list(board)}` : ""}
+    </div>
+    <div class="buttons"><button id="dClose">Close</button></div></div>`;
+  document.body.append(scrim);
+  const close = () => scrim.remove();
+  // The wheel scrolls the list, never the page behind (as in the large viewer).
+  const listEl = $(".list", scrim);
+  scrim.addEventListener("wheel", e => {
+    e.preventDefault();
+    listEl.scrollTop += e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+  }, {passive: false});
+  $("#dClose", scrim).onclick = close;
+  scrim.querySelectorAll(".rmItem").forEach(b => b.onclick = () => {
+    const key = b.dataset.key;
+    close();
+    act(() => api("/api/fit/remove-item", {hash: item.hash, item: key}));
+  });
+  scrim.onclick = e => { if (e.target === scrim) close(); };
+  scrim.tabIndex = -1;
+  scrim.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+  scrim.focus();
+}
+// Right-click a picture: a small menu. On the In-Game Lineup it swaps that slot's fit; "Update picture" is in it when
+// picture requests are switched on.
+function closeMenu() { document.querySelectorAll(".ctxmenu").forEach(m => m.remove()); }
+// Swap one lineup slot for a catalogue fit: live while the game runs, saved for next start when it's closed.
+async function swapSlot(n) {
+  const slot = n - 1;
+  const hash = await pickFit(slot, `Swap slot ${n}`);
+  if (!hash) return;
+  act(() => S.game_running ? liveCall("/api/slot/set", {slot, fit: hash}) : api("/api/slot/set", {slot, fit: hash}));
+}
+// The Fit Catalogue's filter: one at a time, each with how many fits it would show.
+function openFilterMenu(e) {
+  const btn = e.currentTarget;
+  if (document.querySelector(".filtermenu")) { closeMenu(); return; }
+  closeMenu();
+  const fits = S.fits.filter(f => !f.hidden);
+  const menu = document.createElement("div");
+  menu.className = "ctxmenu filtermenu";
+  menu.innerHTML = `<button data-filter="" class="${catFilter ? "" : "cur"}"><span>All fits</span><span class="cnt">${fits.length}</span></button>`
+    + FILTERS.map(([k, label, fn]) => { const n = fits.filter(fn).length;
+      return `<button data-filter="${k}" class="${catFilter === k ? "cur" : ""}" ${n || catFilter === k ? "" : "disabled"}><span>${label}</span><span class="cnt">${n}</span></button>`; }).join("");
+  document.body.append(menu);
+  const r = btn.getBoundingClientRect();
+  menu.style.left = Math.min(r.left, innerWidth - menu.offsetWidth - 8) + "px";
+  menu.style.top = Math.min(r.bottom + 6, innerHeight - menu.offsetHeight - 8) + "px";
+  menu.onclick = ev => {
+    const b = ev.target.closest("button");
+    if (!b || b.disabled) return;
+    catFilter = b.dataset.filter;
+    try { localStorage.setItem("catFilter", catFilter); } catch (e) {}
+    closeMenu();
+    render();
+  };
+}
+document.addEventListener("contextmenu", e => {
+  const box = e.target.closest && e.target.closest(".pic");
+  closeMenu();
+  if (!box) return;
+  const holder = box.closest("[data-slot]"), slot = holder ? +holder.dataset.slot : 0;
+  const hash = box.dataset.hash || "";
+  const item = hash && (S.fits.find(f => f.hash === hash) || S.lineup.find(s => s.hash === hash));
+  const pictures = !!(item && S && S.features && S.features.picture_requests);
+  const fav = hash && S.fits.find(f => f.hash === hash && !f.hidden);
+  if (!slot && !pictures && !fav) return;
+  e.preventDefault();
+  const menu = document.createElement("div");
+  menu.className = "ctxmenu";
+  menu.innerHTML = (slot ? `<button data-act="swap">Swap fit in slot ${slot}…</button>` : "")
+    + (fav ? `<button data-act="fav">${fav.favorite ? "Remove from favorites" : "Add to favorites"}</button>` : "")
+    + (!pictures ? "" : item.requested
+      ? `<div class="note">A new picture is asked for</div><button data-act="cancel">Cancel the picture request</button>`
+      : `<button data-act="update">Update picture…</button>`);
+  document.body.append(menu);
+  const w = menu.offsetWidth, h = menu.offsetHeight;
+  menu.style.left = Math.min(e.clientX, innerWidth - w - 8) + "px";
+  menu.style.top = Math.min(e.clientY, innerHeight - h - 8) + "px";
+  menu.onclick = ev => {
+    const btn = ev.target.closest("button"), what = btn && btn.dataset.act;
+    closeMenu();
+    if (what === "swap") swapSlot(slot);
+    if (what === "fav") toggleFav(hash, box.getBoundingClientRect());
+    if (what === "update") openUpdatePicture(item);
+    if (what === "cancel") act(() => api("/api/picture/request", {hash, cancel: true}));
+  };
+});
+document.addEventListener("pointerdown", e => { if (!e.target.closest || !e.target.closest(".ctxmenu, #filterBtn")) closeMenu(); }, true);
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeMenu(); });
+window.addEventListener("blur", closeMenu);
+
+// How a new picture is taken, before asking the game for it.
+function openUpdatePicture(item) {
+  const slot = (S.lineup.find(s => s.hash === item.hash) || {}).slot;
+  const scrim = document.createElement("div");
+  scrim.className = "scrim";
+  scrim.innerHTML = `<div class="dialog" role="dialog" aria-modal="true">
+    <div><h2>Update picture</h2><div class="sub" style="color:var(--muted);font-size:13px;margin-top:3px">${esc(item.name || "Fit")}</div></div>
+    <p>Preset Wardrobe asks the plugin for a new picture of this fit. When it's taken, it replaces the current one.</p>
+    <ol class="steps">
+      ${slot ? `<li>In skate., open the <b>Skaters</b> page and go to <b>preset ${slot}</b>.</li>`
+             : `<li>This fit isn't in the game right now: <b>load a rotation with it</b> first, then open the <b>Skaters</b> page and go to it.</li>`}
+      <li>Press <b>Insert</b>, go to <b>PLUGINS &gt; Preset Wardrobe</b>: it's under <b>MESSAGES</b> at the top. Press <b>Take it now</b>.</li>
+      <li>Hands off while it snaps. The new picture shows here once it's done.</li>
+    </ol>
+    <p style="font-size:12px">Changed the outfit or board? Then it's a different fit: it's added as its own, and this one stays as it is.</p>
+    <div class="buttons"><button id="uCancel">Cancel</button><button class="primary" id="uSend">Send to the game</button></div></div>`;
+  document.body.append(scrim);
+  const close = () => scrim.remove();
+  $("#uCancel", scrim).onclick = close;
+  scrim.onclick = e => { if (e.target === scrim) close(); };
+  scrim.tabIndex = -1;
+  scrim.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+  $("#uSend", scrim).onclick = () => { close(); act(() => api("/api/picture/request", {hash: item.hash})); };
+  scrim.focus();
+}
+
+// "+ N more" opens the details and doesn't pick the card.
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest("[data-details]");
+  if (!b) return;
+  e.stopPropagation();
+  openDetails(b.dataset.details, b.dataset.show || "both");
+}, true);
+
+// a fit's HQ state ("done", "working" or "") by its hash, from the Catalogue or the Lineup
+const hqOf = h => { if (!h || !S) return ""; const f = (S.fits || []).find(x => x.hash === h) || (S.lineup || []).find(x => x.hash === h); return (f && f.hq) || ""; };
+function openViewer(outfit, title, board = null, startOnBoard = false, boardOnly = false, zbase = "", hash = "") {
+  if (boardOnly) { board = outfit; startOnBoard = true; }
+  let frames = startOnBoard && board ? board : outfit;
+  let onBoard = startOnBoard && !!board;
+  preload(frames);
+  const scrim = document.createElement("div");
+  scrim.className = "scrim";
+  scrim.innerHTML = `<div class="dialog viewer" role="dialog" aria-modal="true">
+    <h2>${esc(title || "Fit")}</h2>
+    <div class="vrow">${board && !boardOnly ? `<div class="modes"><button id="vOutfit">Outfit</button><button id="vBoard">Board</button></div>` : ""}${(() => {
+      const st = hqOf(hash);
+      if (st === "done") return `<div class="vhq"><button id="vHQ" class="hqchip done" title="Showing the high quality version. Click to see the original." aria-pressed="true">HQ</button></div>`;
+      return st ? `<div class="vhq" title="High quality version still processing…"><span class="hqchip">HQ</span><span>High quality version still processing…</span></div>` : "";
+    })()}</div>
+    <!-- PARKED (come back to upscaling options): the Enhance button and its 1x–4x sizes sat here -->
+    <div class="stage">${zoomBar(1)}${saveBox(hash, !!(S.views && hash && S.views[hash]))}<img src="${esc(frames[0])}" alt=""></div>
+    <div class="controls">
+      <button id="vPlay" class="primary" style="width:84px">▶ Spin</button>
+      <input type="range" id="vRange" min="0" max="${stops(frames) - 1}" value="0" step="1" aria-label="Turn the skater">
+      <span class="angle" id="vAngle"></span>
+    </div>
+    <div class="buttons"><button id="vClose">Close</button></div></div>`;
+  document.body.append(scrim);
+  const img = $(".stage img", scrim), range = $("#vRange", scrim), angle = $("#vAngle", scrim), play = $("#vPlay", scrim);
+  let full = isFullSpin(frames); // older snaps turned only part of the way
+  // Pictures: the HQ copies once the app has made them (see hq.go), the originals until then.
+  let scrubAt = 0; // when the slider was last dragged
+  let useHQ = true; // the HQ chip, clicked: the originals, clicked again: HQ
+  const srcFor = n => {
+    const u = frames[n];
+    if (!useHQ) return toPic(u);
+    if (u.startsWith("/hq/") && !picReady(u)) { // the HQ copy isn't decoded yet: the original meanwhile
+      warmPic(u).then(ok => { if (ok && frames[Number(range.value) % frames.length] === u) show(Number(range.value)); });
+      return toPic(u);
+    }
+    return u;
+  };
+  const busy = false;
+  /* PARKED (come back to upscaling options): Enhance in the viewer, with 1x-4x sizes and a progress bar.
+
+  // Enhance, for this fit only: pick a size, click Enhance, and every picture of the fit (outfit and board) is
+  // enhanced by the app, kept in its memory until this viewer closes. The button is locked while it works.
+  let pick = 0, enhS = 0, busy = false, enhRun = 0; // the size picked; the size shown (0: the originals)
+  const enhReady = new Set();
+  {
+    // enhanced earlier in this session: shown so again
+    const pics = [...new Set([...(outfit || []), ...(board || [])])].filter(u => toPic(u).startsWith("/pic/"));
+    const sz = pics.length && enhOf(fullSize(pics[0]));
+    if (sz && pics.every(u => enhOf(fullSize(u)) === sz)) { enhS = pick = sz; pics.forEach(u => enhReady.add(u)); }
+  }
+  const enhUrl = (u, sz = enhS) => enhanced(fullSize(u), sz);
+  let scrubAt = 0; // when the slider was last dragged
+  const moving = () => !!timer || Date.now() - scrubAt < 250;
+  // turning: the 2x (or 1x) version; standing still: the size picked, once it's ready (fetched then)
+  const srcFor = n => {
+    const u = frames[n];
+    if (!enhS || !enhReady.has(u)) {
+      if (u.startsWith("/hq/") && !picReady(u)) { // the HQ copy isn't decoded yet: the original meanwhile
+        warmPic(u).then(ok => { if (ok && frames[Number(range.value) % frames.length] === u) show(Number(range.value)); });
+        return toPic(u);
+      }
+      return u;
+    }
+    const spin = enhUrl(u, spinSize(enhS));
+    if (enhS > SPIN_MAX && !moving()) {
+      const big = enhUrl(u);
+      if (picReady(big)) { warmPic(big); return big; }
+      warmPic(big).then(ok => { if (ok && frames[Number(range.value) % frames.length] === u && !moving()) show(Number(range.value)); });
+    }
+    return picReady(spin) ? spin : u;
+  };
+  const enhBtn = $("#vEnh", scrim), prog = $("#vProg", scrim), sizeBtns = [...scrim.querySelectorAll(".enhsize button")];
+  const allPics = () => [...new Set([...(outfit || []), ...(board || [])])].filter(u => toPic(u).startsWith("/pic/"));
+  const enhKey = u => toPic(fullSize(u));
+  // which sizes of this fit's pictures the app still holds (it lets the oldest go past its memory limit): green
+  let inMemory = {};
+  const checkMemory = () => api("/api/enhance/have", {pics: allPics().map(enhKey)}).then(r => { inMemory = r || {}; enhUi(); }).catch(() => {});
+  const enhUi = () => {
+    enhBtn.disabled = !pick || busy;
+    const showingPick = enhS && enhS === pick && !busy;
+    enhBtn.textContent = showingPick ? "Show original" : "Enhance";
+    enhBtn.title = !pick ? "Pick a size first (1x to 4x)." : busy ? "Working on it…" : showingPick ? "Go back to the pictures as captured." : `Enhance this fit's pictures at ${pick}x. Not saved: it's let go when this closes.`;
+    enhBtn.classList.toggle("on", !!enhS);
+    sizeBtns.forEach(x => {
+      const n = Number(x.dataset.s), made = !!inMemory[n];
+      x.disabled = busy; x.classList.toggle("on", n === pick); x.classList.toggle("made", made);
+      x.title = (n === 1 ? "Sharpen only, at the captured size (quickest)" : `Enlarge ${n}x: sharper when zoomed in, takes longer`) + (made ? ". Already made: shows at once." : "");
+    });
+  };
+  const progress = (done, all) => {
+    prog.hidden = !busy;
+    prog.querySelector("i").style.width = (all ? done / all * 100 : 0) + "%";
+    prog.querySelector("span").textContent = `${done} / ${all}`;
+  };
+  const enhStart = () => {
+    const run = ++enhRun, todo = allPics();
+    enhReady.clear(); busy = true; enhUi();
+    todo.forEach(u => delete ENHPICS[enhKey(u)]); saveEnhPics();
+    // the picture on screen first, then the ones next to it, three at a time
+    const at = Number(range.value) % frames.length, near = u => { const k = frames.indexOf(u); if (k < 0) return 1e6; const d = Math.abs(k - at); return Math.min(d, frames.length - d); };
+    todo.sort((a, b) => near(a) - near(b));
+    let next = 0, done = 0;
+    progress(0, todo.length);
+    const pump = () => {
+      if (run !== enhRun || next >= todo.length) return;
+      const u = todo[next++];
+      const finish = ok => {
+        if (run !== enhRun) return;
+        done++;
+        if (ok) {
+          enhReady.add(u); ENHPICS[enhKey(u)] = enhS;
+          saveEnhPics();
+          if (frames[Number(range.value) % frames.length] === u) show(Number(range.value));
+        }
+        progress(done, todo.length);
+        if (done >= todo.length) { busy = false; prog.hidden = true; enhUi(); checkMemory(); }
+        else pump();
+      };
+      const spin = warmPic(enhUrl(u, spinSize(enhS)));
+      // the larger size is made too (the app keeps it), to show when still; only the spin size is decoded here
+      const big = enhS > SPIN_MAX ? fetch(enhUrl(u)).then(r => r.ok).catch(() => false) : Promise.resolve(true);
+      Promise.all([spin, big]).then(([a, b]) => finish(a && b));
+    };
+    pump(); pump(); pump();
+  };
+  sizeBtns.forEach(b => b.onclick = () => {
+    if (busy) return;
+    pick = Number(b.dataset.s);
+    sizeBtns.forEach(x => x.classList.toggle("on", x === b));
+    enhUi(); // nothing happens until Enhance is clicked
+  });
+  enhBtn.onclick = () => {
+    if (!pick || busy) return;
+    if (enhS === pick) {
+      enhS = 0; enhRun++; enhReady.clear();
+      allPics().forEach(u => delete ENHPICS[enhKey(u)]); saveEnhPics();
+      enhUi(); show(Number(range.value)); return;
+    }
+    enhS = pick;
+    enhStart();
+    show(Number(range.value));
+  };
+  PARKED end */
+  let ready = false; // the viewer's first picture isn't a change of the saved look
+  const show = n => {
+    range.value = n; img.src = srcFor(n % frames.length);
+    range.style.setProperty("--vfill", (Number(range.max) ? n / Number(range.max) * 100 : 0) + "%");
+    if (ready) pvTouch(stageEl);
+    angle.textContent = onBoard ? BOARD_VIEWS[n % 4] : full ? Math.round(n * 360 / frames.length) + "°" : `${n + 1} / ${frames.length}`;
+  };
+  let timer = null;
+  const stop = () => {
+    const was = !!timer;
+    if (timer) clearInterval(timer);
+    timer = null; play.textContent = onBoard ? "▶ Turn" : "▶ Spin";
+    if (was) show(Number(range.value)); // standing still: the full size
+  };
+  play.onclick = () => {
+    if (timer) return stop();
+    play.textContent = "⏸ Stop";
+    timer = setInterval(() => show((Number(range.value) + 1) % frames.length), onBoard ? 700 : 90);
+  };
+  // the stage zooms like the card it was opened from: the same picture keeps the same zoom
+  const stageEl = $(".stage", scrim);
+  stageEl.dataset.hash = hash;
+  stageEl.dataset.main = zbase;
+  stageEl._capture = () => { const v = zget(stageEl.dataset.zkey); return {z: v.z, f: v.f, x: v.x, n: Number(range.value) % frames.length, board: onBoard}; };
+  const zkeyFor = () => { stageEl.dataset.zkey = (zbase || "viewer"); zapply(stageEl); };
+  const setMode = b => {
+    onBoard = b;
+    stop();
+    frames = b ? board : outfit;
+    full = isFullSpin(frames);
+    range.max = (b ? frames.length : stops(frames)) - 1;
+    preload(frames);
+    if (!boardOnly) {
+      $("#vOutfit", scrim).classList.toggle("on", !b);
+      $("#vBoard", scrim).classList.toggle("on", b);
+    }
+    zkeyFor();
+    show(0);
+  };
+  if (board && !boardOnly) { $("#vOutfit", scrim).onclick = () => setMode(false); $("#vBoard", scrim).onclick = () => setMode(true); }
+  let settle = null;
+  range.oninput = () => {
+    stop(); scrubAt = Date.now(); show(Number(range.value));
+    clearTimeout(settle); settle = setTimeout(() => show(Number(range.value)), 300); // let go: the full size
+  };
+  const close = () => {
+    stop(); scrim.remove();
+    /* PARKED: if (busy) { enhRun++; allPics().forEach(u => delete ENHPICS[enhKey(u)]); saveEnhPics(); } */
+    render();
+  };
+  $("#vClose", scrim).onclick = close;
+  scrim.onclick = e => { if (e.target === scrim) close(); };
+  const saved = hash && S.views && S.views[hash];
+  if (board) setMode(onBoard); else { zkeyFor(); show(0); }
+  /* PARKED: enhUi(); checkMemory(); */
+  const hqBtn = $("#vHQ", scrim);
+  if (hqBtn) hqBtn.onclick = () => {
+    useHQ = !useHQ;
+    hqBtn.classList.toggle("done", useHQ);
+    hqBtn.setAttribute("aria-pressed", String(useHQ));
+    hqBtn.title = useHQ ? "Showing the high quality version. Click to see the original." : "Showing the original. Click for the high quality version.";
+    show(Number(range.value));
+  };
+  if (saved && saved.n > 0 && !!saved.board === onBoard) show(saved.n % frames.length); // where the card was held
+  ready = true;
+  const stage = $(".stage", scrim);
+  stage.addEventListener("pointerdown", e => {
+    if (e.target.closest(".zoombar") || e.target.closest(".savepv")) return;
+    e.preventDefault();
+    stop();
+    startDrag(e, stage, () => frames, () => Number(range.value) % frames.length,
+      n => show(((n % frames.length) + frames.length) % frames.length), () => onBoard, undefined, zpan(stage));
+  });
+  scrim.tabIndex = -1;
+  scrim.addEventListener("keydown", e => {
+    if (e.key === "Escape") close();
+    if (e.key === "ArrowRight") { stop(); show((Number(range.value) + 1) % frames.length); }
+    if (e.key === "ArrowLeft") { stop(); show((Number(range.value) - 1 + frames.length) % frames.length); }
+  });
+  scrim.focus();
+}
+
+
+// ---- Mix & match: a new fit from one fit's skater and another fit's board ----
+function openMix() {
+  const all = S.fits.filter(f => !f.hidden);
+  let sk = null, bd = null, nameText = "";
+  const scrim = document.createElement("div");
+  scrim.className = "scrim";
+  const skTile = f => `<button class="tile${sk === f.hash ? " sel" : ""}" data-sk="${f.hash}" title="${esc(f.name)}"><div class="im">${f.picture ? `<img src="${esc(thumb(f.picture))}" alt="" loading="lazy">` : silhouette}</div><b>${esc(f.name)}</b><span class="chk">✓</span></button>`;
+  const bdTile = f => `<button class="tile${bd === f.hash ? " sel" : ""}" data-bd="${f.hash}" title="${esc(f.name)}"><div class="im">${hasBoard(f) ? `<img src="${esc(thumb(f.board[0]))}" alt="" loading="lazy">` : boardIcon}</div><b>${esc(f.name)}</b><span class="chk">✓</span></button>`;
+  const fit = h => all.find(f => f.hash === h);
+  const draw = () => {
+    const keepScroll = [...scrim.querySelectorAll(".tiles")].map(t => t.scrollTop);
+    const A = fit(sk), B = fit(bd);
+    const pieces = !A || !B ? [] : [...A.pieces.filter(p => !p.board).map(p => ({...p, src: A.name})), ...B.pieces.filter(p => p.board).map(p => ({...p, src: B.name}))];
+    scrim.querySelector(".dialog").innerHTML = `
+      <div><h2>Mix &amp; match</h2><div class="muted" style="font-size:13px">Pick a skater from one fit and a board from another. It's saved as a new fit; the originals stay as they are.</div></div>
+      <div class="cols">
+        <div class="col"><div class="lab">1 · Skater from</div><div class="tiles">${all.map(skTile).join("")}</div></div>
+        <div class="mid">
+          <div class="lab" style="margin:0">Result</div>
+          <div class="pv">
+            <span class="tg" style="left:8px">SKATER${A ? " · " + esc(A.name) : ""}</span><span class="tg" style="right:8px">BOARD${B ? " · " + esc(B.name) : ""}</span>
+            ${A && A.picture ? `<img src="${esc(thumb(A.picture))}" alt="">` : `<div class="empty">Pick a skater</div>`}
+            ${B && hasBoard(B) ? `<img src="${esc(thumb(B.board[0]))}" alt="">` : `<div class="empty">Pick a board</div>`}
+          </div>
+          <input id="mixName" value="${esc(nameText)}" placeholder="${esc(A && B ? A.name + " + " + B.name : "Name (optional)")}">
+          <div>${pieces.map(p => `<div class="row"><span class="k">${esc(p.category)}</span><span class="v${p.missing ? " gone" : ""}" title="${esc(p.missing ? MISSING_MSG : p.title)}">${esc(p.title)}<span class="from">from ${esc(p.src)}</span></span></div>`).join("") || `<div class="muted" style="font-size:12.5px">Pick both to see what the new fit holds.</div>`}</div>
+          <div class="note">The skater picture still shows the first fit's board. Load the fit into the game and press ${snapKey()} for a real picture.</div>
+        </div>
+        <div class="col"><div class="lab">2 · Board from</div><div class="tiles">${all.map(bdTile).join("")}</div></div>
+      </div>
+      <div class="foot"><span class="hint">Face and body come from the skater fit.</span><span><button id="mixCancel">Cancel</button> <button class="primary" id="mixSave" ${sk && bd ? "" : "disabled"}>Save as new fit</button></span></div>`;
+    scrim.querySelectorAll(".tiles").forEach((t, i) => { t.scrollTop = keepScroll[i] || 0; });
+    const nm = scrim.querySelector("#mixName");
+    nm.oninput = () => { nameText = nm.value; };
+    scrim.querySelectorAll("[data-sk]").forEach(b => b.onclick = () => { sk = b.dataset.sk; draw(); });
+    scrim.querySelectorAll("[data-bd]").forEach(b => b.onclick = () => { bd = b.dataset.bd; draw(); });
+    scrim.querySelector("#mixCancel").onclick = () => scrim.remove();
+    scrim.querySelector("#mixSave").onclick = () => {
+      const name = nm.value.trim();
+      scrim.remove();
+      act(() => api("/api/fit/mix", {skater: sk, board: bd, name}));
+    };
+  };
+  scrim.innerHTML = `<div class="dialog mix"></div>`;
+  scrim.onclick = e => { if (e.target === scrim) scrim.remove(); };
+  document.body.append(scrim);
+  draw();
+}
+
 async function openSettings() {
   const scrim = document.createElement("div");
   scrim.className = "scrim";
-  scrim.innerHTML = `<div class="dialog">
+  scrim.innerHTML = `<div class="dialog settings">
     <h2>Settings</h2>
-    <p>Game folder (the one with Skate.exe and the Mods folder):</p>
-    <input id="dirInput" value="${esc(S.game_dir)}" placeholder="C:\\Users\\you\\Documents\\ReSkate">
-    <p>Skater profile: <code>${esc(S.profile_db)}</code></p>
-    <div class="buttons" style="justify-content:space-between">
-      <span><button id="openBackups">Open backups</button> <button id="getPlugin2">Get the plugin zip</button></span>
-      <span><button id="closeSet">Close</button> <button class="primary" id="saveDir">Save</button></span>
-    </div>
-    <p style="font-size:12px">Preset Wardrobe ${esc(S.version)}</p></div>`;
+    <section>
+      <h3>Game</h3>
+      <p class="hint">The folder with Skate.exe and the Mods folder.</p>
+      <div class="row"><input id="dirInput" value="${esc(S.game_dir)}" placeholder="C:\\Users\\you\\Documents\\ReSkate"><button class="primary" id="saveDir">Save</button></div>
+      <p class="hint">Skater profile: <code>${esc(S.profile_db)}</code></p>
+    </section>
+    <section>
+      <h3>Loading into the game</h3>
+      <label class="field">After loading into the running game
+        <select id="afterLoad">
+          <option value="ask">Ask me each time</option>
+          <option value="game">Go back to skate.</option>
+          <option value="stay">Stay in the app</option>
+        </select>
+      </label>
+    </section>
+    <section>
+      <h3>Pictures</h3>
+      <div class="storage" id="storageBox"><span class="hint">Working out how much space your pictures use…</span></div>
+      <label class="opt"><input type="checkbox" id="cleanPics" ${S.plain_boards ? "" : "checked"}> Clean up and improve clarity of pictures</label>
+      <p class="hint">Evens out the board's dark lighting and tidies its edges, and makes sharper, larger copies of your fits' pictures in the background, which the previews use once they're ready (HQ). Your original pictures are always kept.</p>
+      <div class="row"><p class="hint" style="flex:1;margin:0">Free up space removes the copies above (and the small ones the cards use). They're made again when needed; your originals stay.</p><button id="freeSpace">Free up space</button></div>
+    </section>
+    <section>
+      <h3>Save file backups</h3>
+      <p class="hint">Complete copies of skate.'s save file, made before every change the app makes to it. Putting one back turns back the whole save, not just your outfits, so it's for when something goes wrong. To undo a load, use <b>Undo history</b> in the sidebar instead. skate. must be closed.</p>
+      <div class="backups" id="bkList"><div class="bk"><span class="bk-what">Loading…</span></div></div>
+      <button id="openBackups">Open the backups folder</button>
+    </section>
+    <section>
+      <h3>Updates</h3>
+      <label class="opt"><input type="checkbox" id="updCheck" ${S.update_check ? "checked" : ""}> Check for updates when the app starts</label>
+      <div class="row"><p class="hint" style="flex:1;margin:0" id="updLine">You have ${esc(S.version)}.${S.update && S.update.available ? ` Version ${esc(S.update.version)} is available: use the button at the top.` : ""}</p><button id="updNow">Check now</button></div>
+    </section>
+    <section>
+      <h3>Plugin</h3>
+      <p class="hint">${S.plugin_installed ? "The Preset Wardrobe plugin is installed." : "The Preset Wardrobe plugin isn't installed: pictures and the in-game refresh need it."}</p>
+      <p class="hint">Snap key: ${snapKey()}${snapPadNote()}. Change the key in skate.: Settings &gt; Controls &gt; Plugins' own binds.</p>
+      ${(S.hotkeys && S.hotkeys.conflicts || []).map(c => `<p class="hint warnline">${esc(c.name)} uses ${esc(c.key)} too: pressing it does both. Rebind one of them in skate.: Settings &gt; Controls &gt; Plugins' own binds.</p>`).join("")}
+      <button id="getPlugin2">Get the plugin zip</button>
+    </section>
+    <div class="buttons" style="justify-content:space-between;align-items:center">
+      <span class="hint">Preset Wardrobe ${esc(S.version)}</span>
+      <button id="closeSet">Close</button>
+    </div></div>`;
   document.body.append(scrim);
   const close = () => { scrim.remove(); render(); };
   $("#closeSet", scrim).onclick = close;
   scrim.onclick = e => { if (e.target === scrim) close(); };
   $("#openBackups", scrim).onclick = () => act(() => api("/api/open", {what: "backups"}));
   $("#getPlugin2", scrim).onclick = () => act(() => api("/api/open", {what: "plugin"}));
+  $("#updCheck", scrim).onchange = e => act(() => api("/api/settings", {update_check: e.target.checked}));
+  $("#updNow", scrim).onclick = async () => {
+    const line = $("#updLine", scrim), btn = $("#updNow", scrim);
+    btn.disabled = true; line.textContent = "Checking…";
+    try {
+      const u = await api("/api/update/check", {});
+      S.update = u; showUpdate();
+      line.textContent = u.available ? `Version ${u.version} is available: use the button at the top.` : `You're up to date (${S.version}).`;
+    } catch (e) { line.textContent = "Couldn't reach GitHub. Try again later."; }
+    btn.disabled = false;
+  };
+  $("#cleanPics", scrim).onchange = e => act(() => api("/api/settings", {plain_boards: !e.target.checked}));
+  const mb = n => n >= 1073741824 ? (n / 1073741824).toFixed(1) + " GB" : n < 1048576 * 10 ? (n / 1048576).toFixed(1) + " MB" : Math.round(n / 1048576) + " MB";
+  let lastUse = null;
+  const showStorage = d => {
+    lastUse = d;
+    const copies = d.thumbs + d.hq + d.boards, total = d.originals + copies;
+    const per = d.fits ? total / d.fits : 0;
+    $("#storageBox", scrim).innerHTML = `<div class="st-top"><b>${d.fits} ${d.fits === 1 ? "fit" : "fits"}</b><span>${mb(total)} in all${d.fits ? ` · about ${mb(per)} per fit` : ""}</span></div>
+      <div class="st-bar" title="Originals ${mb(d.originals)} · copies ${mb(copies)}"><i style="width:${total ? d.originals / total * 100 : 0}%"></i><i class="copies" style="width:${total ? copies / total * 100 : 0}%"></i></div>
+      <div class="st-legend"><span><i></i>Original pictures ${mb(d.originals)}</span><span><i class="copies"></i>Copies that can be made again ${mb(copies)}</span></div>
+      ${d.disk_free ? `<div class="hint">Your drive has ${mb(d.disk_free)} free${per ? `: room for roughly ${Math.floor(d.disk_free / per).toLocaleString()} more fits` : ""}.</div>` : ""}`;
+  };
+  api("/api/storage").then(showStorage).catch(() => {});
+  $("#freeSpace", scrim).onclick = async () => {
+    const d = lastUse || await api("/api/storage").catch(() => null);
+    const copies = d ? d.thumbs + d.hq + d.boards : 0;
+    if (d && copies <= 0) { toast("There's nothing to free up right now."); return; }
+    const ok = await dialog({title: "Free up space?", text: `This frees about <b>${mb(copies)}</b>: the HQ copies (${mb(d.hq)}), the cleaned-up board pictures (${mb(d.boards)}) and the small copies the cards use (${mb(d.thumbs)}).<br><br>Your original pictures stay. The copies are made again on their own: HQ in the background, cleaned-up boards the next time the app starts.`, okText: "Free up " + mb(copies)});
+    if (!ok) return;
+    try { const r = await api("/api/storage", {}); showStorage(r); toast(`Freed ${mb(r.freed || 0)}.`); } catch (e) { toast(e.message, true); }
+  };
+  const al = $("#afterLoad", scrim);
+  al.value = S.after_load || "ask";
+  al.onchange = () => act(() => api("/api/settings", {after_load: al.value}));
+  const showBackups = list => {
+    const box = $("#bkList", scrim);
+    if (!list || !list.length) { box.innerHTML = `<div class="bk"><span class="bk-what">No backups yet. One is made before every change to the game's save.</span></div>`; return; }
+    box.innerHTML = list.map(b => `<div class="bk"><span>${esc(new Date(b.at).toLocaleString([], {month: "short", day: "numeric", hour: "numeric", minute: "2-digit"}))}</span>
+      <span class="bk-what" title="${esc(b.why)}">${esc(b.why)}</span><button data-name="${esc(b.name)}">Put back</button></div>`).join("");
+    box.querySelectorAll("button").forEach(btn => btn.onclick = async () => {
+      if (S.game_running) { toast("Close skate. first: a backup can only be put back while the game is closed.", true); return; }
+      const ok = await dialog({title: "Put this save file back?", text: "This replaces skate.'s <b>whole save file</b> with the copy from then, not just your outfits. To only undo a load, use <b>Undo history</b> in the sidebar instead.<br><br>Your current save file is backed up first, so this can be undone too.", okText: "Put the save file back"});
+      if (!ok) return;
+      act(async () => { const r = await api("/api/backups/restore", {name: btn.dataset.name}); api("/api/backups").then(showBackups).catch(() => {}); return r; });
+    });
+  };
+  api("/api/backups").then(showBackups).catch(() => {});
   $("#saveDir", scrim).onclick = () => act(async () => { const r = await api("/api/settings", {game_dir: $("#dirInput", scrim).value}); close(); return r; });
 }
 $("#settingsBtn").onclick = () => S && openSettings();
@@ -560,12 +2306,17 @@ async function refresh(force) {
     const r = await fetch("/api/state");
     const text = await r.text();
     if (!force && text === lastJSON) return;
+    if (!force && spinBusy) return; // try again next time, once the player lets go
     lastJSON = text;
     const next = JSON.parse(text);
     for (const k of ["lineup", "fits", "rotations", "pending", "events"]) next[k] = next[k] || [];
+    next.views = next.views || {};
     next.fits.forEach(f => { f.pieces = f.pieces || []; f.rotations = f.rotations || []; });
     next.lineup.forEach(s => s.pieces = s.pieces || []);
-    next.rotations.forEach(r => r.slots = r.slots || Array(10).fill(""));
+    next.rotations.forEach(r => {
+      r.slots = r.slots || Array(10).fill("");
+      if (r.auto && /^Before /.test(r.name)) r.name = "Lineup before " + r.name.slice(7); // older Undo history entries
+    });
     next.events.forEach(e => toast(e));
     S = next;
     const live = new Set(S.fits.map(f => f.hash));
@@ -576,8 +2327,138 @@ async function refresh(force) {
     $("#statusText").textContent = e instanceof TypeError && /fetch/i.test(e.message) ? "Preset Wardrobe stopped" : "Display error: " + e.message;
   }
 }
+renderLog();
+pollLog();
+// Picture size: a slider at the bottom right scales the cards, so the grid fits more or fewer per row.
+// 100% is the automatic size (the colored line on the slider); dropping the thumb on it goes back to automatic.
+(() => {
+  const root = document.documentElement, range = $("#sizeRange");
+  const KEY = "pw-card-f";
+  let saved = 0;
+  try { saved = Number(localStorage.getItem(KEY)) || 0; } catch (e) {}
+  range.value = saved >= 50 && saved <= 200 ? saved : 100;
+  range.addEventListener("input", () => {
+    const f = Number(range.value);
+    if (Math.abs(f - 100) <= 5) { // on the line: automatic again
+      root.classList.remove("sized"); range.value = 100;
+      try { localStorage.removeItem(KEY); } catch (e) {}
+      return;
+    }
+    root.style.setProperty("--f", f / 100); root.classList.add("sized");
+    try { localStorage.setItem(KEY, String(f)); } catch (e) {}
+  });
+})();
+// Card size: drag a card's bottom-right corner. Sideways makes it 2 or 3 columns wide, down shows more of the
+// fit's pieces. The reset button puts every card back.
+const MAXSPAN = 3, LINE = 21;
+// Sizes belong to the screen they were set on (the same fit on another screen keeps its own), and they're kept in
+// the app's own config so they survive closing it.
+let cardSize = {}, sizesLoaded = false;
+let sizing = false; // a card is being dragged: the reset button stays as it is until the drag ends
+let autoLines = {}; // lines a card shows only because its row was made taller by another card (not saved)
+const sizeKey = rid => view + "|" + rid;
+const saveSizes = () => { api("/api/card-sizes", cardSize).catch(() => {}); };
+const cardKey = c => { const r = c.querySelector(".rows"); return r ? sizeKey(r.dataset.rid) : ""; };
+function setSpan(c, n) {
+  c.style.gridColumn = n > 1 ? "span " + n : "";
+  c.style.setProperty("--span", n);
+  c.classList.toggle("wide", n > 1);
+}
+function showRows(c) {
+  const holder = c.querySelector(".info .rows"), item = holder && S && itemById(holder.dataset.rid);
+  if (!item) return 0;
+  const pieces = piecesFor(item, showFor(item, holder.dataset.def));
+  const show = showFor(item, holder.dataset.def);
+  holder.innerHTML = rows(pieces, holder.dataset.rid, show);
+  const m = /\+ (\d+) more/.exec(holder.innerHTML);
+  const k = sizeKey(holder.dataset.rid);
+  return (m ? +m[1] : 0) + Math.max((cardSize[k] && cardSize[k].h) || 0, autoLines[k] || 0); // pieces beyond the normal lines
+}
+function applyWidths() {
+  for (const g of document.querySelectorAll("#main .grid")) {
+    const cols = getComputedStyle(g).gridTemplateColumns.split(" ").filter(Boolean).length;
+    for (const c of g.querySelectorAll(":scope > .card")) {
+      const k = cardKey(c);
+      if (!k) continue;
+      if (!c.querySelector(":scope > .wgrip")) c.insertAdjacentHTML("beforeend", `<i class="wgrip" title="Drag to make this card bigger"></i>`);
+      setSpan(c, Math.max(1, Math.min((cardSize[k] && cardSize[k].w) || 1, MAXSPAN, cols)));
+    }
+  }
+  if (!sizing) $("#wReset").hidden = !Object.keys(cardSize).length;
+  fillLines();
+}
+// A row is as tall as its tallest card, so the others in it have room to spare: they show more of their pieces.
+function fillLines() {
+  const cards = [...document.querySelectorAll("#main .grid > .card")].filter(c => c.querySelector(".info .rows"));
+  const before = autoLines;
+  autoLines = {};
+  for (const c of cards) { const k = cardKey(c); if (before[k]) showRows(c); } // back to what each card shows by itself
+  const room = c => { // free space under the card's lines
+    const info = c.querySelector(".info"), r = info.querySelector(".rows");
+    return info.getBoundingClientRect().bottom - parseFloat(getComputedStyle(info).paddingBottom) - r.getBoundingClientRect().bottom;
+  };
+  for (const c of cards) {
+    const k = cardKey(c);
+    if (cardSize[k] && cardSize[k].h) continue; // sized by hand
+    const row = c.querySelector(".info .row");
+    if (!row) continue;
+    const step = row.getBoundingClientRect().height + 3;
+    let n = Math.floor(room(c) / step);
+    if (n < 1) continue;
+    for (let i = 0; i < 4 && n > 0; i++) {
+      autoLines[k] = n; showRows(c);
+      if (room(c) >= -0.5) break;
+      n--; autoLines[k] = n; showRows(c);
+    }
+    if (!n) delete autoLines[k];
+  }
+}
+(() => {
+  let drag = null, lastDrag = 0;
+  document.addEventListener("pointerdown", e => {
+    const grip = e.target.closest && e.target.closest(".wgrip");
+    if (!grip || e.button !== 0) return;
+    const card = grip.parentElement, grid = card.parentElement, key = cardKey(card);
+    if (!key) return;
+    e.preventDefault();
+    const tracks = getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean);
+    const colW = parseFloat(tracks[0]) || card.getBoundingClientRect().width;
+    const cur = cardSize[key] || {};
+    drag = {key, x0: e.clientX, y0: e.clientY, w0: cur.w || 1, h0: cur.h || 0, step: colW + 14, maxW: Math.min(MAXSPAN, tracks.length), maxH: showRows(card)};
+    card.classList.add("wdragging"); document.body.classList.add("wdrag"); sizing = true;
+  });
+  window.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const w = Math.max(1, Math.min(drag.maxW, drag.w0 + Math.round((e.clientX - drag.x0) / drag.step)));
+    const h = Math.max(0, Math.min(drag.maxH, drag.h0 + Math.round((e.clientY - drag.y0) / LINE)));
+    const cur = cardSize[drag.key] || {};
+    if (w === (cur.w || 1) && h === (cur.h || 0)) return;
+    if (w > 1 || h > 0) cardSize[drag.key] = {w, h}; else delete cardSize[drag.key];
+    for (const c of document.querySelectorAll("#main .grid > .card")) if (cardKey(c) === drag.key) showRows(c);
+    applyWidths();
+  });
+  const end = () => {
+    if (!drag) return;
+    drag = null; lastDrag = Date.now(); sizing = false;
+    document.body.classList.remove("wdrag");
+    $("#wReset").hidden = !Object.keys(cardSize).length;
+    for (const c of document.querySelectorAll(".card.wdragging")) c.classList.remove("wdragging");
+    saveSizes();
+  };
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
+  // letting go over a card must not count as a click on it
+  document.addEventListener("click", e => {
+    if ((e.target.closest && e.target.closest(".wgrip")) || Date.now() - lastDrag < 300) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
+  $("#wReset").addEventListener("click", () => {
+    cardSize = {}; saveSizes();
+    for (const c of document.querySelectorAll("#main .grid > .card")) showRows(c);
+    applyWidths();
+  });
+})();
 refresh(true);
-setInterval(() => { if (!busy) refresh(false); }, 2500);
+setInterval(() => { if (!busy) refresh(false); pollLog(); }, 2500);
 </script>
 </body>
 </html>

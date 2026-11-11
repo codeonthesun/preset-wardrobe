@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/icon-512.png" width="128" alt="Preset Wardrobe icon"></p>
+<p align="center"><img src="assets/icon.png" width="128" alt="Preset Wardrobe icon"></p>
 
 # Preset Wardrobe
 
@@ -10,7 +10,9 @@ with a screenshot feature that provides a preview image of each fit in the compa
 
 ## See it in action
 
-![Watch the demo](PresetWardrobe_WDRN3ZyCLn.gif)
+[![Watch the demo: picking fits and loading a rotation](docs/media/demo-poster.png)](docs/media/demo.mp4)
+
+![The Fit Catalogue](docs/media/fit-catalogue.png)
 
 ## Requirements
 
@@ -27,11 +29,10 @@ with a screenshot feature that provides a preview image of each fit in the compa
    If Windows shows "Windows protected your PC", click **More info > Run anyway**.
 5. Open ReSkate and click **Turn on** when you get a prompt about the plugin's permissions.
 6. Go to the **Skaters** page. From here you have two choices:
-   - **One at a time:** select a preset and press **F8** (or hit **Insert** and use
+   - **One at a time:** select a preset and press **F8** (or hold **Y** on a controller; or hit **Insert** and use
      **PLUGINS > Preset Wardrobe > Snap the selected preset**). Change your outfit in between and
      snap again. You can catalogue as many fits as you want.
-   - **10 at a time:** hit **Insert**, go to **PLUGINS > Preset Wardrobe > Walk through all slots**,
-     then highlight your first (leftmost) preset and follow the directions on screen.
+   - **10 at a time:** coming later. It's a work in progress and switched off in the plugin for now.
 7. Open the companion app. Go to **In-Game Lineup** to see your current 10 presets, or to
    **Fit Catalogue** to see every fit you've saved.
 8. In the Fit Catalogue, select fits (up to 10 at a time), click **Make rotation** and give it a name.

@@ -32,14 +32,14 @@ the program finds it with `pluginFolder()` (any mod folder whose manifest is nam
 
 | File | Written by | What |
 |---|---|---|
-| `snaps/fit-NNNNN.png`, `snaps/index.json` (`singles`) | plugin | F8 snaps, with the board parts read at the time |
+| `snaps/fit-NNNNN.png`, `snaps/index.json` (`singles`) | plugin | snaps (snap key or hold Y), with the board parts read at the time |
 | `snaps/01.png` … `10.png`, `index.json` (`shots`) | plugin | walk-through snaps by slot |
 | `wanted.json` | program | item keys it wants names for |
 | `titles.json` | plugin | those names, from `reskate.outfit.title` |
 | `added.json` | program | messages the plugin shows in game ("Added … to your Fit Catalogue") |
 
 On the Skaters page `reskate.outfit.worn()` comes back empty and only the board can be read,
-so the program places an F8 snap by its deck, other board parts and the selected slot
+so the program places a snap by its deck, other board parts and the selected slot
 (`guessSlot`), and asks the player when that isn't conclusive.
 
 ## The program's data

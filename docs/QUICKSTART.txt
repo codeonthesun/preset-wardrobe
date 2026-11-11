@@ -22,7 +22,8 @@ SETUP (once)
      "More info > Run anyway". Check the file against SHA256SUMS.txt on the release page first.
 
 ADD FITS TO YOUR CATALOGUE
-  In skate.: open the Skaters page, SELECT a preset and press F8. Hold still for the countdown.
+  In skate.: open the Skaters page, SELECT a preset and press F8 (or hold Y on a controller).
+  Hold still for the countdown. F8 can be changed in skate.: Settings > Controls > Plugins' own binds.
   The fit and its picture land in your Fit Catalogue, and the game shows "Added ... to your
   Fit Catalogue". Then change that slot to a new outfit and snap again. Repeat any time.
   If Preset Wardrobe can't tell which slot you snapped, it shows the picture and asks

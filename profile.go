@@ -47,6 +47,9 @@ type Piece struct {
 	Category string `json:"category"`
 	Key      string `json:"key"`
 	Title    string `json:"title"`
+	Board    bool   `json:"board,omitempty"`   // part of the board, not the skater
+	Mod      string `json:"mod,omitempty"`     // the mod it's from: "<title> by <author>"
+	Missing  bool   `json:"missing,omitempty"` // the game said it hasn't got this item
 }
 
 // Slot ids seen in the save, and what they hold. Group 0 is the skater, group 1 the board.
@@ -118,7 +121,7 @@ func piecesOf(recipesJSON string) []Piece {
 			if cat == "" {
 				cat = "Other"
 			}
-			out = append(out, Piece{Category: cat, Key: it.Asset})
+			out = append(out, Piece{Category: cat, Key: it.Asset, Board: gi == 1})
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool { return categoryOrder[out[i].Category] < categoryOrder[out[j].Category] })
@@ -249,21 +252,55 @@ func readPresetsFrom(path string) ([]StoredPreset, int, error) {
 	return out, sel, nil
 }
 
-// Backs up the whole profile, then writes the bank's presets into the game's slots.
-// The game must be closed.
-func writePresets(dbPath, backupDir string, presets []StoredPreset) (string, error) {
-	stamp := time.Now().Format("2006-01-02_15-04-05")
-	dir := filepath.Join(backupDir, stamp)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
+// Backs up the whole profile, then writes the presets into the game's slots, then reads them back. If what is
+// in the file isn't what was written, the backup is put back (when the game is closed). why says what the
+// write was for; it is kept with the backup so it can be told apart in Settings.
+func writePresets(dbPath, backupDir string, presets []StoredPreset, live bool, why string) (string, error) {
+	var ids []string
+	for _, p := range presets {
+		ids = append(ids, p.PresetID)
 	}
-	for _, suffix := range []string{"", "-wal", "-shm"} {
-		if _, err := os.Stat(dbPath + suffix); err == nil {
-			if err := copyFile(dbPath+suffix, filepath.Join(dir, "reskate.sqlite3"+suffix)); err != nil {
-				return "", fmt.Errorf("backup failed, nothing was changed: %w", err)
-			}
+	dir, err := backupProfile(dbPath, backupDir, why, ids)
+	if err != nil {
+		return "", fmt.Errorf("backup failed, nothing was changed: %w", err)
+	}
+	dir2, err := writePresetsNoCheck(dbPath, dir, presets, live)
+	if err != nil {
+		return dir2, err
+	}
+	if bad := checkWritten(dbPath, presets); bad != "" {
+		if live {
+			return dir, fmt.Errorf("the game's file doesn't hold what was written (%s); the backup from just before is in %s", bad, dir)
+		}
+		if rerr := restoreProfile(dir, dbPath); rerr != nil {
+			return dir, fmt.Errorf("the game's file doesn't hold what was written (%s), and putting the backup back failed: %v; the backup is in %s", bad, rerr, dir)
+		}
+		return dir, fmt.Errorf("the game's file didn't hold what was written (%s), so it was put back as it was", bad)
+	}
+	pruneBackups(backupDir)
+	return dir, nil
+}
+
+// checkWritten reads the presets back from the file: "" if they are all as written, or which isn't.
+func checkWritten(dbPath string, presets []StoredPreset) string {
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return "it couldn't be opened"
+	}
+	defer db.Close()
+	for _, p := range presets {
+		var got string
+		if err := db.QueryRow(`SELECT recipes_json FROM cosmetic_loadouts WHERE preset_id=?`, p.PresetID).Scan(&got); err != nil {
+			return p.PresetID + " couldn't be read"
+		}
+		if got != p.RecipesJSON {
+			return p.PresetID + " differs"
 		}
 	}
+	return ""
+}
+
+func writePresetsNoCheck(dbPath, dir string, presets []StoredPreset, live bool) (string, error) {
 
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
@@ -297,6 +334,22 @@ func writePresets(dbPath, backupDir string, presets []StoredPreset) (string, err
 	if err := tx.Commit(); err != nil {
 		return dir, err
 	}
-	db.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`)
+	if live {
+		db.Exec(`PRAGMA wal_checkpoint(PASSIVE)`) // the game has the file open: never force it
+	} else {
+		db.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`)
+	}
 	return dir, nil
+}
+
+// The game's hash of an item or slot name (djb2 with xor); an empty name is 0.
+func itemHash(asset string) uint32 {
+	if asset == "" {
+		return 0
+	}
+	h := uint32(5381)
+	for i := 0; i < len(asset); i++ {
+		h = (h * 33) ^ uint32(asset[i])
+	}
+	return h
 }

@@ -1,0 +1,11 @@
+name: Idea or request
+description: Suggest something for Preset Wardrobe
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: What you want to do, and how it would help.
+    validations:
+      required: true

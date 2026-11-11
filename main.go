@@ -40,6 +40,7 @@ func pluginZip() []byte {
 }
 
 func main() {
+	afterUpdate()
 	local := os.Getenv("PB_LOCALAPPDATA")
 	if local == "" {
 		local = os.Getenv("LOCALAPPDATA")
@@ -59,6 +60,30 @@ func main() {
 
 	app := &App{dataDir: data, localApp: local, pluginZip: pluginZip(), lastSeen: time.Now()}
 	app.load()
+	supervise("watchKeyRequests", app.watchKeyRequests)
+	supervise("watchTimeline", app.watchTimeline)
+	app.note("info", "Preset Wardrobe %s started", appVersion)
+	supervise("watchGame", app.watchGame)
+	supervise("watchPending", app.watchPending)
+	supervise("watchRefresh", app.watchRefresh)
+	supervise("watchSync", app.watchSync)
+	liveCachePath = filepath.Join(data, "live_cache.json")
+	itemDir = app.pluginDataDir
+	loadItemStatus(app.dir("item_status.json"))
+	supervise("watchItems", app.watchItems)
+	supervise("watchWarm", app.watchWarm)
+	supervise("watchSkaterNow", app.watchSkaterNow)
+	supervise("watchHQ", app.watchHQ)
+	supervise("watchFitStatus", app.watchFitStatus)
+	supervise("watchHotkeys", app.watchHotkeys)
+	go func() { defer recoverLog("update check"); app.watchUpdates() }()
+	go func() { // a game left silent by an earlier refresh gets its sound back
+		defer recoverLog("sound restore")
+		time.Sleep(3 * time.Second)
+		if gameRunning() {
+			restoreGameSound()
+		}
+	}()
 	ui, _ := uiFS.ReadFile("ui/index.html")
 
 	addr := "127.0.0.1:0"
@@ -71,7 +96,7 @@ func main() {
 	}
 	url := fmt.Sprintf("http://%s/", ln.Addr().String())
 	log.Println("serving", url)
-	srv := &http.Server{Handler: app.routes(ui), ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Handler: localHostOnly(app.routes(ui)), ReadHeaderTimeout: 10 * time.Second}
 	go srv.Serve(ln)
 
 	showWindow(url, app, data)

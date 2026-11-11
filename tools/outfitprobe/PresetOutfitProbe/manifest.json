@@ -1,0 +1,7 @@
+{
+    "name": "PresetOutfitProbe",
+    "version_number": "0.0.3",
+    "website_url": "https://github.com/codeonthesun/preset-wardrobe",
+    "description": "Throwaway test for Preset Wardrobe: what does outfit.slots() return, and does outfit.set dress the skater live?",
+    "dependencies": []
+}

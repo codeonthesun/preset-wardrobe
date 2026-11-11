@@ -1,0 +1,10 @@
+# build output
+/dist/
+*.exe
+*.syso
+/presetwardrobe
+# editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

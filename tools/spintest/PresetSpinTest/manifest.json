@@ -1,0 +1,7 @@
+{
+    "name": "PresetSpinTest",
+    "version_number": "0.0.1",
+    "website_url": "https://github.com/codeonthesun/preset-wardrobe",
+    "description": "Throwaway test for Preset Wardrobe: how far does a mouse drag turn the Skaters page preview, compared with the controller stick?",
+    "dependencies": []
+}
