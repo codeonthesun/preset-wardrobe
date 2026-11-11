@@ -8,6 +8,7 @@ LUAU="${LUAU:-luau}"
 { cat fake_reskate.luau; echo "do"
   sed -e 's/^local PICTURE_REQUESTS = false/local PICTURE_REQUESTS = true/' \
       -e 's/^local UNSAVED_CHECK = false/local UNSAVED_CHECK = true/' \
-      -e 's/^local DEV_TOOLS = false/local DEV_TOOLS = true/' ../../PresetWardrobe/plugin/main.lua
+      -e 's/^local DEV_TOOLS = false/local DEV_TOOLS = true/' \
+      -e 's/^local WALKTHROUGH = false/local WALKTHROUGH = true/' ../../PresetWardrobe/plugin/main.lua
   echo "end"; cat checks.luau; } > /tmp/presetwardrobe-test.luau
 "$LUAU" /tmp/presetwardrobe-test.luau

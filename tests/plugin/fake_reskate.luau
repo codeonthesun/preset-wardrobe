@@ -83,7 +83,11 @@ reskate = {
         end,
     },
     log = function(m) print("LOG", m) end,
-    on = function(ev, fn) handlers[ev] = fn end,
+    -- A plugin can listen to an event more than once: each listener is called, in the order added.
+    on = function(ev, fn)
+        local prev = handlers[ev]
+        handlers[ev] = if prev then function(...) prev(...) return fn(...) end else fn
+    end,
 }
 vector = {create = function(x, y, z) return {x = x, y = y, z = z} end}
 

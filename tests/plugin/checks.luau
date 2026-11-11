@@ -55,7 +55,7 @@ plant = function(ms)
     end
 end
 page_build(fakeUI)
-handlers.action("presetwardrobe_snap")
+handlers.action("Preset Wardrobe: snap a fit")
 advance(30000)
 check(saved_frames["snaps/fit-00001-turn.png"] == 24, "F8 with the turn on saves 24 frames, together in one file")
 check(files["snaps/fit-00001.png"] ~= nil, "and a cover picture")
@@ -70,7 +70,7 @@ check(turns[#turns] == 0, "the stick is let go")
 slider_override.spin_deg = 0
 page_build(fakeUI)
 slider_override.spin_deg = nil
-handlers.action("presetwardrobe_snap")
+handlers.action("Preset Wardrobe: snap a fit")
 advance(8000)
 check(files["snaps/fit-00002.png"] ~= nil and count("^snaps/fit%-00002%-") == 0, "turn 0 saves one picture")
 slider_override.spin_deg = 360
@@ -78,7 +78,7 @@ page_build(fakeUI)
 slider_override.spin_deg = nil
 
 -- Leaving the Skaters page pauses a snap, coming back finishes it.
-handlers.action("presetwardrobe_snap")
+handlers.action("Preset Wardrobe: snap a fit")
 skaters = false
 advance(3000)
 skaters = true
@@ -100,7 +100,7 @@ check(shown == 2, "both catalogue messages shown, once each")
 local pose_fn = reskate.room.pose
 reskate.room.pose = function() return nil end
 local before = #turns
-handlers.action("presetwardrobe_snap")
+handlers.action("Preset Wardrobe: snap a fit")
 advance(9000)
 check(files["snaps/fit-00004.png"] ~= nil and count("^snaps/fit%-00004%-") == 0, "without a reading it takes one picture")
 local pushed = false
@@ -113,7 +113,7 @@ slider_override.spin_deg = 90
 page_build(fakeUI)
 slider_override.spin_deg = nil
 for i = 1, 24 do
-    handlers.action("presetwardrobe_snap")
+    handlers.action("Preset Wardrobe: snap a fit")
     advance(16000)
 end
 local covers = 0
@@ -165,7 +165,7 @@ reskate.animation = {
 }
 local opener = handlers.tick
 handlers.tick = function() if room_state == "opening" then room_state = "open" end opener() end
-handlers.action("presetwardrobe_snap")
+handlers.action("Preset Wardrobe: snap a fit")
 advance(30000)
 local newest = 0
 for p in files do local n = p:match("^snaps/fit%-(%d+)%.png$") if n then newest = math.max(newest, tonumber(n)) end end
@@ -190,7 +190,7 @@ end
 check(square, "each view stands the board straight, turns it in place, -10 degrees off square and 90 apart")
 -- When the game won't play the animation, the fit is still snapped, without board views.
 board_ok = false
-handlers.action("presetwardrobe_snap")
+handlers.action("Preset Wardrobe: snap a fit")
 advance(30000)
 check(snaps() >= 1 and count("%-board%.png$") == 1, "if the animation won't play, the fit is snapped without board views")
 
@@ -221,7 +221,7 @@ page_build(fakeUI)
 advance(320000)
 check(run_turns_moving == 0, "the preview isn't turned (holding the controller) while you move to the next preset")
 for k = 1, 10 do
-    handlers.action("presetwardrobe_snap")
+    handlers.action("Preset Wardrobe: snap a fit")
     advance(9000)
 end
 local wb = 0
@@ -354,14 +354,14 @@ local opened = 0
 local open0 = reskate.room.open
 reskate.room.open = function() opened += 1 return open0() end
 local covers0 = snaps()
-handlers.action("presetwardrobe_snap")
+handlers.action("Preset Wardrobe: snap a fit")
 advance(3000)
 check(snaps() == covers0 and toasts[#toasts]:find("hasn't saved") ~= nil, "a changed, unsaved outfit isn't snapped, and says why")
-handlers.action("presetwardrobe_snap")
+handlers.action("Preset Wardrobe: snap a fit")
 advance(30000)
 check(toasts[#toasts]:find("Fit snapped") ~= nil and opened == 0, "F8 again snaps it anyway, without going to the stage for the board (" .. toasts[#toasts] .. ", stage " .. opened .. ")")
 files["saved_outfits.json"] = '{"slots":[{"slot":1,"items":["own_hoodie1","own_deck","own_custbody_mmesoavg"]}],"version":1}'
-handlers.action("presetwardrobe_snap")
+handlers.action("Preset Wardrobe: snap a fit")
 advance(40000)
 check(opened == 1, "a saved outfit snaps as usual, board pictures and all")
 -- the game's default parts aren't in any saved preset, and don't count
@@ -369,7 +369,7 @@ files["saved_outfits.json"] = '{"slots":[{"slot":1,"items":["own_deck"]}],"versi
 local worn1 = reskate.outfit.board
 reskate.outfit.board = function() return {{item = "Own_Deck"}, {item = "Own_WheelColor_Gen_Classic_00009"}} end
 local before_t = #toasts
-handlers.action("presetwardrobe_snap")
+handlers.action("Preset Wardrobe: snap a fit")
 advance(40000)
 local blocked = false
 for i = before_t + 1, #toasts do if toasts[i]:find("isn't any saved") then blocked = true end end
