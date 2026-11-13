@@ -10,7 +10,7 @@ with a screenshot feature that provides a preview image of each fit in the compa
 
 ## See it in action
 
-[![Watch the demo:](docs/media/demo-poster.png)](docs/media/demov2.mp4)
+[![Watch the demo:](docs/media/demo-poster.png)](docs/media/demov2.mp4?raw=true)
 
 ![The Fit Catalogue](docs/media/fit-catalogue.png)
 
