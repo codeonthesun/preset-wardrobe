@@ -207,6 +207,9 @@ func (a *App) watchTimeline() {
 							if strings.Contains(line, "Skater component factory") {
 								skaterBuilds.Add(1)
 							}
+							if strings.Contains(line, "Saved profile applied to the game") {
+								profileApplied.Store(time.Now().UnixNano())
+							}
 							if gameProfileLine.MatchString(line) || (strings.Contains(line, "[Customization]") && !strings.Contains(line, "Item browser")) {
 								if len(line) > 220 {
 									line = line[:220]

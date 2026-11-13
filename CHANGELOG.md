@@ -3,6 +3,45 @@
 Versions follow [semantic versioning](https://semver.org). The release workflow copies the
 section for a version into its GitHub release notes, so write each one for players.
 
+## [0.3.1] - 2026-11-12
+
+### Changed
+- **Loading into the running game was rebuilt from the ground up.** A fit now goes straight to where skate. itself
+  keeps your outfit, so your skater and board change at once, wherever you are: in the world, in menus, and on
+  servers. No more replay refresh or black screen.
+- **Loads stay put.** A loaded fit is what the game saves, so it's still there after a map change, joining or
+  leaving a server, and restarting the game.
+- Loads are much faster (a fraction of a second).
+- Settings: "After loading into the running game" is now "After loading a fit into the game".
+- And more smaller changes.
+
+### Added
+- **The Skaters page preview updates too** when you load while it's open.
+- **Load into any slot**, not only the one you're wearing. A slot you haven't opened yet this session gets its new
+  fit the moment you switch to it.
+- **A note in the game after each load:** "Fit applied successfully.", or "Fit couldn't be applied. Check Preset
+  Wardrobe for details." It waits until skate. is the window in front, so you won't miss it.
+- The **"Loaded. Go back to skate.?"** prompt closes by itself after 8 seconds, with a bar showing the time left.
+  It waits while your pointer is on it.
+- And more.
+
+### Fixed
+- The board didn't change on servers or after a map change, and a map change could put your old fit back.
+- Colors and options of loaded items are loaded too (new items used to keep the old items' settings).
+- Saved fits could show as "not saved" with no pictures after the game saved them, when the fit had items that
+  aren't installed.
+- A piece from your previous fit (an arm bandage, say) could stay on when the new fit's item for that slot isn't
+  installed. Headwear, eyewear, gloves and accessories are now left empty in that case.
+- In-game notes from the app could stop showing after the app was restarted.
+- And more smaller fixes.
+
+### Known limits
+- **All 10 in a row** is still switched off while it's being fixed.
+- **Some features need a controller connected** (spinning snaps, and holding Y to snap).
+- The first time you switch to a slot you loaded into this session, its old fit can show for a moment before the
+  new one goes on.
+- If a mod renames an item, fits saved with the old name show it as not installed. Snap those fits again.
+
 ## [0.3.0] - 2026-11-11
 
 ### Added

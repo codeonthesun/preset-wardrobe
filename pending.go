@@ -22,6 +22,8 @@ type pendingEntry struct {
 	// The game's skater has been seen wearing this since it was loaded (the plugin reports what it wears). Until
 	// then a difference means the load hasn't shown yet, not that something was edited in the game.
 	Verified bool `json:"verified,omitempty"`
+	// Face and body were loaded with the fit (otherwise the game keeps its own there).
+	Body bool `json:"body,omitempty"`
 }
 
 func (a *App) pendingPath() string { return a.dir("pending_live.json") }
@@ -48,12 +50,12 @@ func (a *App) savePendingLocked(m map[string]pendingEntry) {
 	writeJSON(a.pendingPath(), m)
 }
 
-func (a *App) addPending(writes []StoredPreset, mem map[string]string) {
+func (a *App) addPending(writes []StoredPreset, mem map[string]string, body bool) {
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 	m := a.readPendingLocked()
 	for _, p := range writes {
-		m[p.PresetID] = pendingEntry{StoredPreset: p, Mem: mem[p.PresetID]}
+		m[p.PresetID] = pendingEntry{StoredPreset: p, Mem: mem[p.PresetID], Body: body}
 	}
 	a.savePendingLocked(m)
 }

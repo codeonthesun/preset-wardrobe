@@ -425,7 +425,11 @@ select { background: var(--panel-2); color: var(--text); border: 1px solid var(-
 .dialog.settings .st-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); }
 .dialog.settings .st-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); margin-right: 5px; }
 .backprompt { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; background: var(--panel); border: 1px solid var(--line);
-  border-radius: 12px; padding: 14px 16px; box-shadow: 0 10px 40px rgba(0,0,0,.45); display: grid; gap: 10px; min-width: 300px; }
+  border-radius: 12px; padding: 14px 16px; box-shadow: 0 10px 40px rgba(0,0,0,.45); display: grid; gap: 10px; min-width: 300px;
+  overflow: hidden; }
+/* the time left before the prompt closes by itself: a bar along its bottom edge, paused while the pointer is on it */
+.backprompt .bp-timer { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--accent);
+  transform-origin: left center; opacity: .85; }
 .backprompt .bp-text { font-weight: 600; }
 .backprompt .bp-buttons { display: flex; gap: 8px; }
 .backprompt .opt { font-size: 12px; color: var(--muted); }
@@ -1239,10 +1243,33 @@ function afterLiveLoad() {
   box.className = "backprompt";
   box.innerHTML = `<div class="bp-text">Loaded. Go back to skate.?</div>
     <div class="bp-buttons"><button class="primary" id="bpGo">Go back to the game</button><button id="bpStay">Stay here</button></div>
-    <label class="opt"><input type="checkbox" id="bpRemember"> Remember my choice</label>`;
+    <label class="opt"><input type="checkbox" id="bpRemember"> Remember my choice</label>
+    <div class="bp-timer"></div>`;
   document.body.append(box);
+  // It closes by itself after a while (as "stay here", nothing remembered): the bar shows the time left. The time
+  // stops while the pointer is on the prompt or a choice in it has the focus, and starts again after.
+  const LIFE = 8000;
+  const bar = $(".bp-timer", box);
+  let left = LIFE, last = performance.now(), held = false, closed = false;
+  const hold = on => { held = on; };
+  box.addEventListener("pointerenter", () => hold(true));
+  box.addEventListener("pointerleave", () => hold(box.contains(document.activeElement)));
+  box.addEventListener("focusin", () => hold(true));
+  box.addEventListener("focusout", () => setTimeout(() => hold(box.matches(":hover") || box.contains(document.activeElement)), 0));
+  const tick = now => {
+    if (closed || !box.isConnected) return; // closed, or replaced by the prompt of a newer load
+    if (!held) left -= now - last;
+    last = now;
+    bar.style.transform = `scaleX(${Math.max(0, left / LIFE)})`;
+    if (left <= 0) { done("timeout"); return; }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
   const done = async choice => {
+    if (closed) return;
+    closed = true;
     box.remove();
+    if (choice === "timeout") return;
     if ($("#bpRemember", box).checked) {
       try { await api("/api/settings", {after_load: choice}); S.after_load = choice; toast(choice === "game" ? "OK: after a load, the app takes you back to skate. (change it in Settings)" : "OK: after a load, the app stays open (change it in Settings)"); } catch (e) {}
     }
@@ -2199,13 +2226,15 @@ async function openSettings() {
     </section>
     <section>
       <h3>Loading into the game</h3>
-      <label class="field">After loading into the running game
+      <label class="field">After loading a fit into the game
         <select id="afterLoad">
           <option value="ask">Ask me each time</option>
           <option value="game">Go back to skate.</option>
           <option value="stay">Stay in the app</option>
         </select>
       </label>
+      <!-- PIN: "Fade to black while a fit changes" (load_fade, coverLoad in refresh.go) is kept for a later toggle:
+      <label class="opt"><input type="checkbox" id="loadFade" ${S.load_fade ? "checked" : ""}> Fade to black while a fit changes</label> -->
     </section>
     <section>
       <h3>Pictures</h3>
@@ -2227,7 +2256,7 @@ async function openSettings() {
     </section>
     <section>
       <h3>Plugin</h3>
-      <p class="hint">${S.plugin_installed ? "The Preset Wardrobe plugin is installed." : "The Preset Wardrobe plugin isn't installed: pictures and the in-game refresh need it."}</p>
+      <p class="hint">${S.plugin_installed ? "The Preset Wardrobe plugin is installed." : "The Preset Wardrobe plugin isn't installed: pictures and the in-game notes need it."}</p>
       <p class="hint">Snap key: ${snapKey()}${snapPadNote()}. Change the key in skate.: Settings &gt; Controls &gt; Plugins' own binds.</p>
       ${(S.hotkeys && S.hotkeys.conflicts || []).map(c => `<p class="hint warnline">${esc(c.name)} uses ${esc(c.key)} too: pressing it does both. Rebind one of them in skate.: Settings &gt; Controls &gt; Plugins' own binds.</p>`).join("")}
       <button id="getPlugin2">Get the plugin zip</button>
@@ -2242,6 +2271,8 @@ async function openSettings() {
   scrim.onclick = e => { if (e.target === scrim) close(); };
   $("#openBackups", scrim).onclick = () => act(() => api("/api/open", {what: "backups"}));
   $("#getPlugin2", scrim).onclick = () => act(() => api("/api/open", {what: "plugin"}));
+  const lf = $("#loadFade", scrim); // hidden for now (see the PIN above)
+  if (lf) lf.onchange = e => act(() => api("/api/settings", {load_fade: e.target.checked}));
   $("#updCheck", scrim).onchange = e => act(() => api("/api/settings", {update_check: e.target.checked}));
   $("#updNow", scrim).onclick = async () => {
     const line = $("#updLine", scrim), btn = $("#updNow", scrim);

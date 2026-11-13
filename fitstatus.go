@@ -41,7 +41,7 @@ func (a *App) buildFitStatus() (fitStatus, bool) {
 	if err != nil {
 		return fitStatus{}, false
 	}
-	cur = a.withLive(a.withPending(cur))
+	cur = a.withCatalogMatch(a.withLive(a.withPending(cur)))
 	byHash := map[string]Fit{}
 	for _, f := range a.listFits() {
 		byHash[f.Hash] = f

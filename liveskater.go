@@ -344,12 +344,9 @@ func (a *App) watchSkaterNow() {
 				a.note("ok", "Checked in the game: slot %d shows the fit you loaded.", slotNumber(id))
 				continue
 			}
-			refreshMu.Lock()
-			armed := refreshWant != nil
-			refreshMu.Unlock()
 			ms, mok := a.readMenuState()
-			if armed || !(mok && ms.Known && !ms.Open) {
-				waitSig = "" // the refresh hasn't happened yet, or a menu is open
+			if !(mok && ms.Known && !ms.Open) {
+				waitSig = "" // a menu is open
 				continue
 			}
 			if s := id + changeSig(diffs); s != waitSig {
@@ -371,6 +368,12 @@ func (a *App) watchSkaterNow() {
 		}
 		waitSig = ""
 		if len(diffs) == 0 {
+			clear()
+			continue
+		}
+		if _, loaded := a.readPending()[id]; loaded && !a.liveCurrent(findSkatePID()) {
+			// The game put its saved profile back (joining or leaving a server does) and wears its file's fit
+			// again: that's not an edit. The sync puts the loaded fit back (autosync.go).
 			clear()
 			continue
 		}

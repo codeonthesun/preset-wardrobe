@@ -18,6 +18,32 @@ The selected preset is `selected_preset_index` in `profile_extensions` (section 
   quits). The database, WAL and shared-memory files are copied to a backup first, then only
   `cosmetic_loadouts` rows are upserted in one transaction, and the WAL is checkpointed.
 
+## Loading into the running game
+
+While the game runs, a load changes what it wears in its memory (Windows only: `memlive_windows.go`,
+`modelload_windows.go`, `modelpreview_windows.go`). Addresses are for skate. build 20260929; ReSkate's source
+(GPL-3, github.com/Dingo-Shenanigans/ReSkate) documents most of them.
+
+- **Where the skater takes its outfit from.** The skater and the board each have a cosmetic part (a component).
+  When a part is flagged as changed (+0x10a, and +0x10d for the rebuild), the game's update of it
+  (`0x140523130`) looks its handle (+0x170) up in the data model manager it holds (+0x1a8) and copies the outfit
+  it finds into itself. For the local player both handles lead to one list of outfits: item 0 the skater's,
+  item 1 the board's. `modelValue` does that lookup with plain reads, as the game does.
+- **A load** writes the fit (item hash, the game's empty name, and the item's settings in place) into the preset's
+  record in the game's loadout manager (`patchPresetList`) and into that list, then flags both parts. The game puts
+  it on within a few frames. With the Skaters page open, the page's own copy of the preset and its preview parts are
+  written too (`previewLoad`).
+- **Why it lasts.** On a map change, a server join or a restart the game builds the skater again from the preset
+  records and ReSkate's saved profile. ReSkate saves a preset from its record when the game saves it (on leaving
+  the preset, for one), so the fit is what's saved and what comes back.
+- **Presets not shown yet** this session have no record (the manager holds the presets up to the highest one
+  shown, in order). A load holds the fit for them; when the game first shows one, the app writes the fit into the
+  new record and puts it on (`watchSelection`).
+- **Items not installed** are left as the game has them, except in slots that can be empty (headwear, eyewear,
+  gloves, accessories), which are emptied. ReSkate saves such items back into a preset where the slot shows its
+  default (it keeps them for when they're installed again), so a saved preset is matched to the catalogue fit
+  slot by slot, leaving those out (`fitInFile`, `withCatalogMatch`).
+
 ## Fits
 
 A fit is one preset's recipes, filed under `outfitHash`: a SHA-1 over the sorted skater and

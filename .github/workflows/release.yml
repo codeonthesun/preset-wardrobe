@@ -83,6 +83,11 @@ jobs:
               echo "Replacing an unfinished draft of ${TAG}"
               gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/${id}"
             else
+              if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+                # Publishing a draft made by "Run workflow" creates its tag, and that tag starts this
+                # workflow again: nothing to do.
+                echo "::notice::${TAG} is already published, nothing to do."; exit 0
+              fi
               echo "::error::${TAG} is already published. Release a new version number instead."; exit 1
             fi
           done < existing.txt

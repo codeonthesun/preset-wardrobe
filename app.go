@@ -56,6 +56,7 @@ type Config struct {
 	RequestSeq int          `json:"picture_request_seq"`
 	// Settings > Updates: don't ask GitHub for a newer version when the app starts.
 	NoUpdateCheck bool `json:"no_update_check,omitempty"`
+	LoadFade      bool `json:"load_fade,omitempty"` // fade to black while a fit changes on the skater
 }
 
 type CardSize struct {
@@ -1065,7 +1066,12 @@ func (a *App) ack(message string, warn bool) {
 	if dir == "" {
 		return
 	}
+	// ids only grow: the plugin shows a message once, newer than the last it showed (it keeps that across runs,
+	// and the count here wasn't always saved), so they're tenths of a second since 2026
 	a.cfg.AckID++
+	if t := int(time.Now().UnixMilli()/100 - 17670000000); t > a.cfg.AckID {
+		a.cfg.AckID = t
+	}
 	a.acks = append(a.acks, ackMsg{ID: a.cfg.AckID, Message: message, Warn: warn})
 	if len(a.acks) > 5 {
 		a.acks = a.acks[len(a.acks)-5:]
@@ -1398,6 +1404,7 @@ type apiState struct {
 	Hotkeys         Hotkeys                `json:"hotkeys"`
 	Update          updateView             `json:"update"`
 	UpdateCheck     bool                   `json:"update_check"`
+	LoadFade        bool                   `json:"load_fade"`
 	Version         string                 `json:"version"`
 }
 
@@ -1461,13 +1468,13 @@ func (a *App) modItems() map[string]string {
 
 func (a *App) state() apiState {
 	st := apiState{GameRunning: gameRunning(), ProfileDB: a.profileDB(), GameDir: a.cfg.GameDir,
-		GameDirOK: isGameDir(a.cfg.GameDir), PlainBoards: a.cfg.PlainBoards, AfterLoad: a.cfg.AfterLoad, Views: a.previewViews(), CardSizes: a.cfg.CardSizes, Features: map[string]bool{"picture_requests": pictureRequests}, PluginInstalled: a.pluginInstalled(), Version: appVersion, Hotkeys: a.hotkeys(), Update: updateState(), UpdateCheck: !a.cfg.NoUpdateCheck,
+		GameDirOK: isGameDir(a.cfg.GameDir), PlainBoards: a.cfg.PlainBoards, AfterLoad: a.cfg.AfterLoad, Views: a.previewViews(), CardSizes: a.cfg.CardSizes, Features: map[string]bool{"picture_requests": pictureRequests}, PluginInstalled: a.pluginInstalled(), Version: appVersion, Hotkeys: a.hotkeys(), Update: updateState(), UpdateCheck: !a.cfg.NoUpdateCheck, LoadFade: a.cfg.LoadFade,
 		Lineup: []SlotView{}, Fits: []FitView{}, Rotations: []RotationView{}, Pending: []PendingView{}, Events: []string{}}
 	current, sel, err := readPresets(st.ProfileDB, a.dir("tmp"))
 	if err != nil {
 		st.ProfileError = "Couldn't read your skater profile: " + err.Error()
 	}
-	current = a.withLive(a.withPending(current))
+	current = a.withCatalogMatch(a.withLive(a.withPending(current)))
 	if ev := a.importSnaps(current, sel); ev != nil {
 		st.Events = ev
 	}
@@ -1661,7 +1668,7 @@ func (a *App) routes(ui []byte) *http.ServeMux {
 			fail(w, 500, "Couldn't read your In-Game Lineup: "+err.Error())
 			return nil, false
 		}
-		return a.withLive(a.withPending(current)), true
+		return a.withCatalogMatch(a.withLive(a.withPending(current))), true
 	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -2445,6 +2452,7 @@ func (a *App) routes(ui []byte) *http.ServeMux {
 			PlainBoards *bool   `json:"plain_boards"`
 			AfterLoad   *string `json:"after_load"`
 			UpdateCheck *bool   `json:"update_check"`
+			LoadFade    *bool   `json:"load_fade"`
 		}
 		if decode(r, &req) != nil {
 			fail(w, 400, "bad request")
@@ -2457,6 +2465,10 @@ func (a *App) routes(ui []byte) *http.ServeMux {
 		}
 		if req.UpdateCheck != nil {
 			a.cfg.NoUpdateCheck = !*req.UpdateCheck
+			changed = true
+		}
+		if req.LoadFade != nil {
+			a.cfg.LoadFade = *req.LoadFade
 			changed = true
 		}
 		if req.AfterLoad != nil {
@@ -2735,40 +2747,46 @@ func (a *App) loadRotation(w http.ResponseWriter, rot Rotation, opt loadOpts) {
 	if opt.Live && gameRunning() {
 		markLiveLoad()
 		// into the running game's memory; its save file is left to the game
+		liveLoadMu.Lock() // never at the same time as the automatic sync (autosync.go)
+		defer liveLoadMu.Unlock()
 		tl.logf("APP: live load of %d presets into the running game", len(writes))
-		if d := settleLeft(); d > 0 {
-			tl.logf("APP: waiting %.1f s for the game to settle after the last replay", d.Seconds())
-			time.Sleep(d)
-		}
+
 		inMemory := a.withPendingMem(current) // the game's tables, as they are
+		if pid := findSkatePID(); !a.liveCurrent(pid) {
+			// This game hasn't had the held fits put in yet (it was started since, or it reloaded its profile on a
+			// trip): it wears what its file says, so that's what to look for.
+			inMemory = current
+			tl.logf("APP: live load: the game wears its file's fits (it hasn't had the held ones put back yet)")
+		}
 		{
 			selID := ""
 			if sel >= 0 && sel < len(presetIDs) {
 				selID = presetIDs[sel]
 			}
 			setLiveSelected(selID, sel)
-			// what the selected preset's skater really wears now (the plugin says), so its tables are recognised
-			// even after edits in the game that were never saved
-			noteLiveOutfit("", nil, nil)
-			if sk, ok := a.readSkaterNow(); ok && selID != "" {
-				if _, ok := editsOf(current, selID, sk); ok {
-					items, lens := map[uint32]uint32{}, map[uint32]int{}
-					for name, item := range sk.Slots {
-						items[itemHash(name)], lens[itemHash(name)] = itemHash(item), len(item)
-					}
-					noteLiveOutfit(selID, items, lens)
-				}
-			}
 		}
+		// the fit goes on the skater at once (the game's data model); the black cover (off unless turned on) hides
+		// the change and lifts as soon as the plugin sees the skater wearing it
+		if ms, ok := a.readMenuState(); ok && ms.Known {
+			liveMenuOpen.Store(ms.Open)
+		} else {
+			liveMenuOpen.Store(true)
+		}
+		cover := a.coverLoad(writes, sel)
 		res, err := patchLiveMemory(inMemory, writes, opt.Body, false)
+		if err != nil {
+			cover.release(a, false)
+		}
 		if err == nil {
 			// the game copies its outfit tables after a change; a second quick look catches the copies still holding
 			// the old outfit. It runs right after the skater refresh so it never delays it.
-			armSweep(inMemory, writes, opt.Body)
 		}
 		tl.logf("APP: live load: %s (error: %v)", strings.ReplaceAll(res, "\n", "; "), err)
 		step("memory patch done")
 		if err != nil {
+			if modelLoadOn {
+				queueGameToast(toastFailed)
+			}
 			fail(w, 500, "Couldn't change the running game: "+err.Error())
 			return
 		}
@@ -2781,8 +2799,9 @@ func (a *App) loadRotation(w http.ResponseWriter, rot Rotation, opt loadOpts) {
 			}
 		}
 		a.saveLiveState(findSkatePID())
-		a.addPending(writes, mem) // shown as what's in the game now; written to its file when it closes
+		a.addPending(writes, mem, opt.Body) // shown as what's in the game now; written to its file when it closes
 		step("saved pending")
+		cover.release(a, true)
 		a.prune()
 		step("pruned")
 		var loaded []string
@@ -2809,14 +2828,28 @@ func (a *App) loadRotation(w http.ResponseWriter, rot Rotation, opt loadOpts) {
 		if sel >= 0 && sel < len(presetIDs) {
 			for _, id := range loaded {
 				if id == presetIDs[sel] {
-					a.armRefresh(loaded)
-					next = "Your skater refreshes by itself once you're in the world with no menu open and skate. in front."
-					break
+					if modelLoadOn {
+						next = "Your skater wears it now."
+						if notOn, _ := modelNotShown.Load().(string); notOn != "" {
+							next = "The game didn't put the fit on the " + notOn + ". Try loading it again."
+							lines = append(lines, logLine{"warn", next})
+							next = ""
+						}
+						break
+					}
 				}
 			}
 		}
 		if next != "" {
 			lines = append(lines, logLine{"info", next})
+		}
+		if modelLoadOn {
+			// the same note for every load, wherever the fit went (the preset worn or another slot)
+			if notOn, _ := modelNotShown.Load().(string); notOn != "" {
+				queueGameToast(toastFailed)
+			} else {
+				queueGameToast(toastApplied)
+			}
 		}
 		lines = append(lines, logLine{"info", "It's saved to the game's file when you close skate."})
 		short := fmt.Sprintf("Loaded %s into the game.", rot.Name)
