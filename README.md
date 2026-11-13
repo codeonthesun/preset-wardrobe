@@ -48,6 +48,7 @@ Found a bug? [Open an issue](../../issues/new/choose) and fill in the bug report
 
 - Created by **[jrkmods](https://thunderstore.io/c/reskate/p/jrkmods/)**, also known as [codeonthesun](https://github.com/codeonthesun) here on GitHub
 - Built on the [ReSkate](https://github.com/Dingo-Shenanigans/ReSkate) plugin API
+- Assistance from Claude Ai 
 
 ## License
 
