@@ -8,7 +8,19 @@ with a screenshot feature that provides a preview image of each fit in the compa
 
 **[Download the latest release](../../releases/latest)**
 
-## Watch the demo:
+
+## Key features
+
+- **Instant live loading, everywhere.** Load a fit while skate. is running and your skater and board change on the spot: in the world, on the Skaters page, and on online servers. It lasts through map changes, joining and leaving servers, and restarts.
+- **Snap fits from inside the game.** Press your snap key (or hold <kbd>Y</kbd> on a controller) on the Skaters page and the outfit is saved to your Fit Catalogue with pictures, no alt-tabbing.
+- **Spinning 360° previews.** Every snap turns your skater a full circle and takes four pictures of the board, so you can see backs, backpacks and graphics. Drag any picture to turn it. Sharper HQ copies are made quietly in the background.
+- **Knows what you're wearing.** A card on the Skaters page tells you whether the preset on screen is already in your catalogue, has pictures, or isn't saved yet, and lists its pieces by their real names.
+- **Rotations.** Build sets of up to 10 fits and load a whole lineup into the game at once, or swap one fit into a single slot.
+- **Safe by design.** Every change to skate.'s save is backed up first and checked after it's written, and every load can be undone.
+- **Mix & match.** Make a new fit from one fit's skater and another fit's board.
+- **Share your fits.** Export a rotation or your whole catalogue as a `.wardrobe` file, pictures included, and import other people's.
+
+## Watch the demo
 
 https://github.com/user-attachments/assets/a372fac2-f642-41f4-9064-8ea062ca3b5d
 
