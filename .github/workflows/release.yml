@@ -45,7 +45,7 @@ jobs:
         run: bash scripts/build-release.sh "${TAG}"
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             dist/PresetWardrobe.exe
