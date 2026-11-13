@@ -37,14 +37,14 @@ PY
 
 # Icon, version info and the Windows manifest for the .exe.
 WINRES="${GO_WINRES:-go run github.com/tc-hib/go-winres@v0.3.3}"
-$WINRES simply --arch amd64 --out rsrc --manifest gui --icon assets/icon.ico \
+$WINRES simply --arch amd64 --out app/rsrc --manifest gui --icon assets/icon.ico \
   --product-name "Preset Wardrobe" --file-description "Preset Wardrobe for ReSkate" \
   --product-version "$VERSION" --file-version "$VERSION" --original-filename PresetWardrobe.exe \
   --copyright "(c) 2026 jrkmods (codeonthesun)"
 
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -tags nodynamic -trimpath \
-  -ldflags "-H windowsgui -s -w -X main.appVersion=$VERSION" -o "$DIST/PresetWardrobe.exe" .
-rm -f rsrc_windows_amd64.syso
+  -ldflags "-H windowsgui -s -w -X main.appVersion=$VERSION" -o "$DIST/PresetWardrobe.exe" ./app
+rm -f app/rsrc_windows_amd64.syso
 
 (cd "$ROOT" && zip -qr "$DIST/PresetWardrobe-plugin.zip" PresetWardrobe)
 (cd "$DIST" && cp "$ROOT/docs/QUICKSTART.txt" . && \

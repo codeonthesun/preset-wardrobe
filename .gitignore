@@ -3,6 +3,7 @@
 *.exe
 *.syso
 /presetwardrobe
+/app/app
 # editors and OS
 .vscode/
 .idea/

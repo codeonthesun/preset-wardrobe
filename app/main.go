@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"presetwardrobe"
 	"time"
 )
 
@@ -20,12 +21,10 @@ var appVersion = "dev"
 //go:embed ui/index.html
 var uiFS embed.FS
 
-//go:embed all:PresetWardrobe
-var pluginFS embed.FS
-
 func pluginZip() []byte {
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
+	pluginFS := presetwardrobe.PluginFS // the plugin folder at the repository's top (embed.go)
 	fs.WalkDir(pluginFS, "PresetWardrobe", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err

@@ -36,4 +36,4 @@ jobs:
         run: bash tests/plugin/run.sh
 
       - name: Build the Windows exe
-        run: GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-H windowsgui -s -w" -o PresetWardrobe.exe .
+        run: GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-H windowsgui -s -w" -o PresetWardrobe.exe ./app

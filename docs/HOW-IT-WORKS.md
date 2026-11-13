@@ -1,6 +1,7 @@
 # How it works
 
-Notes for anyone working on the code.
+Notes for anyone working on the code. The app is the Go program in `app/`; the ReSkate plugin is
+`PresetWardrobe/`, which the app carries inside it (`embed.go`) and installs.
 
 ## The game's presets
 
@@ -83,7 +84,7 @@ for a while. POST requests from other origins are refused.
 ```sh
 go test ./...
 tests/plugin/run.sh                      # needs the luau CLI
-GOOS=windows go build -ldflags "-H windowsgui" -o PresetWardrobe.exe .
+GOOS=windows go build -ldflags "-H windowsgui" -o PresetWardrobe.exe ./app
 scripts/build-release.sh 0.2.0           # what the release workflow runs: dist/
 ```
 
