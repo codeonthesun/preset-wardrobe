@@ -8,9 +8,9 @@ with a screenshot feature that provides a preview image of each fit in the compa
 
 **[Download the latest release](../../releases/latest)**
 
-## See it in action
+## Watch the demo:
 
-[![Watch the demo:](docs/media/demo-poster.png)](docs/media/demov2.mp4?raw=true)
+https://github.com/user-attachments/assets/a372fac2-f642-41f4-9064-8ea062ca3b5d
 
 ![The Fit Catalogue](docs/media/fit-catalogue.png)
 
